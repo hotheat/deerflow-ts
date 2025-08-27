@@ -1,12 +1,9 @@
 import { Code } from '@core/common/code/Code';
 import { Exception } from '@core/common/exception/Exception';
-import { GetMediaPreviewQuery } from '@core/common/message/query/queries/media/GetMediaPreviewQuery';
-import { GetMediaPreviewQueryResult } from '@core/common/message/query/queries/media/result/GetMediaPreviewQueryResult';
-import { GetUserPreviewQuery } from '@core/common/message/query/queries/user/GetUserPreviewQuery';
-import { GetUserPreviewQueryResult } from '@core/common/message/query/queries/user/result/GetUserPreviewQueryResult';
-import { QueryBusPort } from '@core/common/port/message/QueryBusPort';
 import { Optional } from '@core/common/type/CommonTypes';
 import { CoreAssert } from '@core/common/util/assert/CoreAssert';
+import { Media } from '@core/domain/media/entity/Media';
+import { MediaRepositoryPort } from '@core/domain/media/port/persistence/MediaRepositoryPort';
 import { Post } from '@core/domain/post/entity/Post';
 import { PostImage } from '@core/domain/post/entity/PostImage';
 import { PostOwner } from '@core/domain/post/entity/PostOwner';
@@ -14,30 +11,35 @@ import { PostRepositoryPort } from '@core/domain/post/port/persistence/PostRepos
 import { CreatePostPort } from '@core/domain/post/port/usecase/CreatePostPort';
 import { CreatePostUseCase } from '@core/domain/post/usecase/CreatePostUseCase';
 import { PostUseCaseDto } from '@core/domain/post/usecase/dto/PostUseCaseDto';
+import { User } from '@core/domain/user/entity/User';
+import { UserRepositoryPort } from '@core/domain/user/port/persistence/UserRepositoryPort';
 
 export class CreatePostService implements CreatePostUseCase {
   
   constructor(
     private readonly postRepository: PostRepositoryPort,
-    private readonly queryBus: QueryBusPort,
+    private readonly userRepository: UserRepositoryPort,
+    private readonly mediaRepository: MediaRepositoryPort,
   ) {}
   
   public async execute(payload: CreatePostPort): Promise<PostUseCaseDto> {
-    const postOwner: GetUserPreviewQueryResult = CoreAssert.notEmpty(
-      await this.queryBus.sendQuery(GetUserPreviewQuery.new({id: payload.executorId})),
+    const postOwner: User = CoreAssert.notEmpty(
+      await this.userRepository.findUser({id: payload.executorId}),
       Exception.new({code: Code.ENTITY_NOT_FOUND_ERROR, overrideMessage: 'Post owner not found.'})
     );
     
-    const postImage: Optional<GetMediaPreviewQueryResult> = payload.imageId
-      ? await this.queryBus.sendQuery(GetMediaPreviewQuery.new({id: payload.imageId, ownerId: payload.executorId}))
-      : undefined;
-    
-    const imageNotFound: boolean = !! (!postImage && payload.imageId);
-    CoreAssert.isFalse(imageNotFound, Exception.new({code: Code.ENTITY_NOT_FOUND_ERROR, overrideMessage: 'Post image not found.'}));
+    let postMedia: Optional<Media> = undefined;
+    if (payload.imageId) {
+      postMedia = await this.mediaRepository.findMedia({id: payload.imageId});
+      CoreAssert.notEmpty(postMedia, Exception.new({code: Code.ENTITY_NOT_FOUND_ERROR, overrideMessage: 'Post image not found.'}));
+      
+      const hasAccess: boolean = postMedia!.getOwnerId() === payload.executorId;
+      CoreAssert.isTrue(hasAccess, Exception.new({code: Code.ACCESS_DENIED_ERROR, overrideMessage: 'Access denied to media.'}));
+    }
     
     const post: Post = await Post.new({
-      owner  : await PostOwner.new(postOwner.id, postOwner.name, postOwner.role),
-      image  : postImage ? await PostImage.new(postImage.id, postImage.relativePath) : null,
+      owner  : await PostOwner.new(postOwner.getId(), postOwner.getName(), postOwner.getRole()),
+      image  : postMedia ? await PostImage.new(postMedia.getId(), postMedia.getMetadata().relativePath) : null,
       title  : payload.title,
       content: payload.content,
     });

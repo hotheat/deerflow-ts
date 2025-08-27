@@ -1,11 +1,11 @@
 import { Code } from '@core/common/code/Code';
-import { GetMediaPreviewQueryResult } from '@core/common/message/query/queries/media/result/GetMediaPreviewQueryResult';
-import { CoreDITokens } from '@core/common/di/CoreDITokens';
 import { MediaType } from '@core/common/enums/MediaEnums';
 import { UserRole } from '@core/common/enums/UserEnums';
 import { Exception } from '@core/common/exception/Exception';
-import { QueryBusPort } from '@core/common/port/message/QueryBusPort';
 import { ClassValidationDetails } from '@core/common/util/class-validator/ClassValidator';
+import { Media } from '@core/domain/media/entity/Media';
+import { MediaRepositoryPort } from '@core/domain/media/port/persistence/MediaRepositoryPort';
+import { FileMetadata } from '@core/domain/media/value-object/FileMetadata';
 import { PostDITokens } from '@core/domain/post/di/PostDITokens';
 import { Post } from '@core/domain/post/entity/Post';
 import { PostImage } from '@core/domain/post/entity/PostImage';
@@ -15,40 +15,41 @@ import { EditPostPort } from '@core/domain/post/port/usecase/EditPostPort';
 import { PostUseCaseDto } from '@core/domain/post/usecase/dto/PostUseCaseDto';
 import { EditPostUseCase } from '@core/domain/post/usecase/EditPostUseCase';
 import { EditPostService } from '@core/service/post/usecase/EditPostService';
-import { NestQueryBusAdapter } from '@infrastructure/adapter/message/NestQueryBusAdapter';
-import { TypeOrmPostRepositoryAdapter } from '@infrastructure/adapter/persistence/typeorm/repository/post/TypeOrmPostRepositoryAdapter';
-import { CqrsModule } from '@nestjs/cqrs';
 import { Test, TestingModule } from '@nestjs/testing';
 import { v4 } from 'uuid';
 
 describe('EditPostService', () => {
   let editPostService: EditPostUseCase;
   let postRepository: PostRepositoryPort;
-  let queryBus: QueryBusPort;
+  let mediaRepository: MediaRepositoryPort;
   
   beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      imports: [CqrsModule],
       providers: [
         {
           provide: PostDITokens.EditPostUseCase,
-          useFactory: (postRepository, queryBus) => new EditPostService(postRepository, queryBus),
-          inject: [PostDITokens.PostRepository, CoreDITokens.QueryBus]
+          useFactory: (postRepository, mediaRepository) => new EditPostService(postRepository, mediaRepository),
+          inject: ['PostRepository', 'MediaRepository']
         },
         {
-          provide: PostDITokens.PostRepository,
-          useClass: TypeOrmPostRepositoryAdapter
+          provide: 'PostRepository',
+          useValue: {
+            findPost: jest.fn(),
+            updatePost: jest.fn()
+          }
         },
         {
-          provide: CoreDITokens.QueryBus,
-          useClass: NestQueryBusAdapter
+          provide: 'MediaRepository',
+          useValue: {
+            findMedia: jest.fn()
+          }
         }
       ]
     }).compile();
   
     editPostService = module.get<EditPostUseCase>(PostDITokens.EditPostUseCase);
-    postRepository  = module.get<PostRepositoryPort>(PostDITokens.PostRepository);
-    queryBus        = module.get<QueryBusPort>(CoreDITokens.QueryBus);
+    postRepository = module.get<PostRepositoryPort>('PostRepository');
+    mediaRepository = module.get<MediaRepositoryPort>('MediaRepository');
   });
   
   describe('execute', () => {

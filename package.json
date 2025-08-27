@@ -8,6 +8,8 @@
     "copy:local-env": "cp ./env/local.app.env ./dist/.env",
     "start": "node ./dist/Main.js",
     "start:local": "npm run copy:local-env && cd ./dist && node -r dotenv/config Main.js",
+    "dev": "nodemon",
+    "dev:debug": "nodemon --exec 'cp ./env/local.app.env ./.env && ts-node --inspect -r dotenv/config src/Main.ts'",
     "test": "jest --config jest.json",
     "test:cov": "jest --config jest.json --coverage",
     "lib:check": "ncu",
@@ -52,16 +54,17 @@
     "jest-junit": "15.0.0",
     "jest-sonar-reporter": "2.0.0",
     "jsonwebtoken": "9.0.0",
+    "nodemon": "^3.1.10",
     "npm-check-updates": "16.7.9",
     "supertest": "6.3.3",
     "ts-jest": "29.0.5",
     "ts-node": "10.9.1",
+    "tsconfig-paths": "^4.2.0",
     "typescript": "4.9.5"
   },
   "dependencies": {
     "@nestjs/common": "8.4.7",
     "@nestjs/core": "8.0.6",
-    "@nestjs/cqrs": "8.0.0",
     "@nestjs/jwt": "8.0.0",
     "@nestjs/passport": "8.2.2",
     "@nestjs/platform-express": "8.0.6",
@@ -93,8 +96,8 @@
     "sonar56x": true
   },
   "_moduleAliases": {
-    "@core": "core",
-    "@infrastructure": "infrastructure",
-    "@application": "application"
+    "@core": "src/core",
+    "@infrastructure": "src/infrastructure",
+    "@application": "src/application"
   }
 }

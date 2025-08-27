@@ -9,9 +9,6 @@ export class PostDITokens {
   public static readonly PublishPostUseCase: unique symbol = Symbol('PublishPostUseCase');
   public static readonly RemovePostUseCase: unique symbol  = Symbol('RemovePostUseCase');
   
-  // Handlers
-  
-  public static readonly PostImageRemovedEventHandler: unique symbol = Symbol('PostImageRemovedEventHandler');
   
   // Repositories
   

@@ -1,47 +1,38 @@
 import { PostController } from '@application/api/http-rest/controller/PostController';
-import { CoreDITokens } from '@core/common/di/CoreDITokens';
+import { PersistenceModule } from '@application/di/PersistenceModule';
+import { MediaDITokens } from '@core/domain/media/di/MediaDITokens';
 import { PostDITokens } from '@core/domain/post/di/PostDITokens';
+import { UserDITokens } from '@core/domain/user/di/UserDITokens';
 import { CreatePostUseCase } from '@core/domain/post/usecase/CreatePostUseCase';
 import { EditPostUseCase } from '@core/domain/post/usecase/EditPostUseCase';
 import { PublishPostUseCase } from '@core/domain/post/usecase/PublishPostUseCase';
 import { RemovePostUseCase } from '@core/domain/post/usecase/RemovePostUseCase';
-import { HandlePostImageRemovedEventService } from '@core/service/post/handler/HandlePostImageRemovedEventService';
 import { CreatePostService } from '@core/service/post/usecase/CreatePostService';
 import { EditPostService } from '@core/service/post/usecase/EditPostService';
 import { GetPostListService } from '@core/service/post/usecase/GetPostListService';
 import { GetPostService } from '@core/service/post/usecase/GetPostService';
 import { PublishPostService } from '@core/service/post/usecase/PublishPostService';
 import { RemovePostService } from '@core/service/post/usecase/RemovePostService';
-import { TypeOrmPostRepositoryAdapter } from '@infrastructure/adapter/persistence/typeorm/repository/post/TypeOrmPostRepositoryAdapter';
-import { NestWrapperPostImageRemovedEventHandler } from '@infrastructure/handler/post/NestWrapperPostImageRemovedEventHandler';
 import { TransactionalUseCaseWrapper } from '@infrastructure/transaction/TransactionalUseCaseWrapper';
 import { Module, Provider } from '@nestjs/common';
-import { Connection } from 'typeorm';
 
-const persistenceProviders: Provider[] = [
-  {
-    provide   : PostDITokens.PostRepository,
-    useFactory: connection => connection.getCustomRepository(TypeOrmPostRepositoryAdapter),
-    inject    : [Connection]
-  }
-];
 
 const useCaseProviders: Provider[] = [
   {
     provide   : PostDITokens.CreatePostUseCase,
-    useFactory: (postRepository, queryBus) => {
-      const service: CreatePostUseCase = new CreatePostService(postRepository, queryBus);
+    useFactory: (postRepository, userRepository, mediaRepository) => {
+      const service: CreatePostUseCase = new CreatePostService(postRepository, userRepository, mediaRepository);
       return new TransactionalUseCaseWrapper(service);
     },
-    inject    : [PostDITokens.PostRepository, CoreDITokens.QueryBus]
+    inject    : [PostDITokens.PostRepository, UserDITokens.UserRepository, MediaDITokens.MediaRepository]
   },
   {
     provide   : PostDITokens.EditPostUseCase,
-    useFactory: (postRepository, queryBus) => {
-      const service: EditPostUseCase = new EditPostService(postRepository, queryBus);
+    useFactory: (postRepository, mediaRepository) => {
+      const service: EditPostUseCase = new EditPostService(postRepository, mediaRepository);
       return new TransactionalUseCaseWrapper(service);
     },
-    inject    : [PostDITokens.PostRepository, CoreDITokens.QueryBus]
+    inject    : [PostDITokens.PostRepository, MediaDITokens.MediaRepository]
   },
   {
     provide   : PostDITokens.GetPostListUseCase,
@@ -71,26 +62,17 @@ const useCaseProviders: Provider[] = [
   },
 ];
 
-const handlerProviders: Provider[] = [
-  {
-    provide  : NestWrapperPostImageRemovedEventHandler,
-    useClass : NestWrapperPostImageRemovedEventHandler,
-  },
-  {
-    provide   : PostDITokens.PostImageRemovedEventHandler,
-    useFactory: (postRepository) => new HandlePostImageRemovedEventService(postRepository),
-    inject    : [PostDITokens.PostRepository]
-  }
-];
 
 @Module({
+  imports: [
+    PersistenceModule
+  ],
   controllers: [
     PostController
   ],
   providers: [
-    ...persistenceProviders,
     ...useCaseProviders,
-    ...handlerProviders,
-  ]
+  ],
+  exports: []
 })
 export class PostModule {}

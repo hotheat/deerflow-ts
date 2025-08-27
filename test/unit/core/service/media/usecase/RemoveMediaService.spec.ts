@@ -1,9 +1,6 @@
 import { Code } from '@core/common/code/Code';
-import { MediaRemovedEvent } from '@core/common/message/event/events/media/MediaRemovedEvent';
-import { CoreDITokens } from '@core/common/di/CoreDITokens';
 import { MediaType } from '@core/common/enums/MediaEnums';
 import { Exception } from '@core/common/exception/Exception';
-import { EventBusPort } from '@core/common/port/message/EventBusPort';
 import { ClassValidationDetails } from '@core/common/util/class-validator/ClassValidator';
 import { MediaDITokens } from '@core/domain/media/di/MediaDITokens';
 import { Media } from '@core/domain/media/entity/Media';
@@ -11,41 +8,43 @@ import { MediaRepositoryPort } from '@core/domain/media/port/persistence/MediaRe
 import { RemoveMediaPort } from '@core/domain/media/port/usecase/RemoveMediaPort';
 import { RemoveMediaUseCase } from '@core/domain/media/usecase/RemoveMediaUseCase';
 import { FileMetadata } from '@core/domain/media/value-object/FileMetadata';
+import { PostRepositoryPort } from '@core/domain/post/port/persistence/PostRepositoryPort';
 import { RemoveMediaService } from '@core/service/media/usecase/RemoveMediaService';
-import { NestEventBusAdapter } from '@infrastructure/adapter/message/NestEventBusAdapter';
-import { TypeOrmMediaRepositoryAdapter } from '@infrastructure/adapter/persistence/typeorm/repository/media/TypeOrmMediaRepositoryAdapter';
-import { CqrsModule } from '@nestjs/cqrs';
 import { Test, TestingModule } from '@nestjs/testing';
 import { v4 } from 'uuid';
 
 describe('RemoveMediaService', () => {
   let removeMediaService: RemoveMediaUseCase;
   let mediaRepository: MediaRepositoryPort;
-  let eventBus: EventBusPort;
+  let postRepository: PostRepositoryPort;
   
   beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      imports: [CqrsModule],
       providers: [
         {
           provide: MediaDITokens.RemoveMediaUseCase,
-          useFactory: (mediaRepository, eventBus) => new RemoveMediaService(mediaRepository, eventBus),
-          inject: [MediaDITokens.MediaRepository, CoreDITokens.EventBus]
+          useFactory: (mediaRepository, postRepository) => new RemoveMediaService(mediaRepository, postRepository),
+          inject: ['MediaRepository', 'PostRepository']
         },
         {
-          provide: MediaDITokens.MediaRepository,
-          useClass: TypeOrmMediaRepositoryAdapter
+          provide: 'MediaRepository',
+          useValue: {
+            findMedia: jest.fn(),
+            removeMedia: jest.fn()
+          }
         },
         {
-          provide: CoreDITokens.EventBus,
-          useClass: NestEventBusAdapter
+          provide: 'PostRepository',
+          useValue: {
+            updatePosts: jest.fn()
+          }
         }
       ]
     }).compile();
   
     removeMediaService = module.get<RemoveMediaUseCase>(MediaDITokens.RemoveMediaUseCase);
-    mediaRepository    = module.get<MediaRepositoryPort>(MediaDITokens.MediaRepository);
-    eventBus           = module.get<EventBusPort>(CoreDITokens.EventBus);
+    mediaRepository = module.get<MediaRepositoryPort>('MediaRepository');
+    postRepository = module.get<PostRepositoryPort>('PostRepository');
   });
   
   describe('execute', () => {

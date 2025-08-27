@@ -1,10 +1,9 @@
 import { Code } from '@core/common/code/Code';
-import { GetMediaPreviewQuery } from '@core/common/message/query/queries/media/GetMediaPreviewQuery';
-import { GetMediaPreviewQueryResult } from '@core/common/message/query/queries/media/result/GetMediaPreviewQueryResult';
 import { Exception } from '@core/common/exception/Exception';
-import { QueryBusPort } from '@core/common/port/message/QueryBusPort';
 import { Nullable, Optional } from '@core/common/type/CommonTypes';
 import { CoreAssert } from '@core/common/util/assert/CoreAssert';
+import { Media } from '@core/domain/media/entity/Media';
+import { MediaRepositoryPort } from '@core/domain/media/port/persistence/MediaRepositoryPort';
 import { Post } from '@core/domain/post/entity/Post';
 import { PostImage } from '@core/domain/post/entity/PostImage';
 import { PostRepositoryPort } from '@core/domain/post/port/persistence/PostRepositoryPort';
@@ -16,7 +15,7 @@ export class EditPostService implements EditPostUseCase {
   
   constructor(
     private readonly postRepository: PostRepositoryPort,
-    private readonly queryBus: QueryBusPort,
+    private readonly mediaRepository: MediaRepositoryPort,
   ) {}
   
   public async execute(payload: EditPostPort): Promise<PostUseCaseDto> {
@@ -47,11 +46,15 @@ export class EditPostService implements EditPostUseCase {
     const needResetImage: boolean = payload.imageId === null;
     
     if (needUpdateImage) {
-      const query: GetMediaPreviewQuery = GetMediaPreviewQuery.new({id: payload.imageId, ownerId: payload.executorId});
-      const exception: Exception<void> = Exception.new({code: Code.ENTITY_NOT_FOUND_ERROR, overrideMessage: 'Post image not found.'});
-      const postImage: GetMediaPreviewQueryResult = CoreAssert.notEmpty(await this.queryBus.sendQuery(query), exception);
+      const media: Media = CoreAssert.notEmpty(
+        await this.mediaRepository.findMedia({id: payload.imageId}),
+        Exception.new({code: Code.ENTITY_NOT_FOUND_ERROR, overrideMessage: 'Post image not found.'})
+      );
+      
+      const hasAccess: boolean = media.getOwnerId() === payload.executorId;
+      CoreAssert.isTrue(hasAccess, Exception.new({code: Code.ACCESS_DENIED_ERROR, overrideMessage: 'Access denied to media.'}));
 
-      newPostImage = await PostImage.new(postImage.id, postImage.relativePath);
+      newPostImage = await PostImage.new(media.getId(), media.getMetadata().relativePath);
     }
     if (needResetImage) {
       newPostImage = null;

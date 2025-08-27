@@ -1,18 +1,18 @@
 import { Code } from '@core/common/code/Code';
+import { MediaType } from '@core/common/enums/MediaEnums';
 import { Exception } from '@core/common/exception/Exception';
-import { MediaRemovedEvent } from '@core/common/message/event/events/media/MediaRemovedEvent';
-import { EventBusPort } from '@core/common/port/message/EventBusPort';
 import { CoreAssert } from '@core/common/util/assert/CoreAssert';
 import { Media } from '@core/domain/media/entity/Media';
 import { MediaRepositoryPort } from '@core/domain/media/port/persistence/MediaRepositoryPort';
 import { RemoveMediaPort } from '@core/domain/media/port/usecase/RemoveMediaPort';
 import { RemoveMediaUseCase } from '@core/domain/media/usecase/RemoveMediaUseCase';
+import { PostRepositoryPort } from '@core/domain/post/port/persistence/PostRepositoryPort';
 
 export class RemoveMediaService implements RemoveMediaUseCase {
   
   constructor(
     private readonly mediaRepository: MediaRepositoryPort,
-    private readonly eventBus: EventBusPort,
+    private readonly postRepository: PostRepositoryPort,
   ) {}
   
   public async execute(payload: RemoveMediaPort): Promise<void> {
@@ -24,8 +24,12 @@ export class RemoveMediaService implements RemoveMediaUseCase {
     const hasAccess: boolean = payload.executorId === media.getOwnerId();
     CoreAssert.isTrue(hasAccess, Exception.new({code: Code.ACCESS_DENIED_ERROR}));
     
+    // Update posts that reference this media before removing it
+    if (media.getType() === MediaType.IMAGE) {
+      await this.postRepository.updatePosts({imageId: null}, {imageId: media.getId()});
+    }
+    
     await this.mediaRepository.removeMedia(media);
-    await this.eventBus.sendEvent(MediaRemovedEvent.new(media.getId(), media.getOwnerId(), media.getType()));
   }
   
 }
