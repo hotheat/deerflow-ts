@@ -14,6 +14,9 @@ export class ServerApplication {
   public async run(): Promise<void> {
     const app: NestExpressApplication = await NestFactory.create<NestExpressApplication>(RootModule);
     
+    // Set global API prefix
+    app.setGlobalPrefix('api');
+    
     this.buildAPIDocumentation(app);
     this.log();
   

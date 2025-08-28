@@ -2,37 +2,36 @@ import { MediaDITokens } from '@core/domain/media/di/MediaDITokens';
 import { PostDITokens } from '@core/domain/post/di/PostDITokens';
 import { UserDITokens } from '@core/domain/user/di/UserDITokens';
 import { MinioMediaFileStorageAdapter } from '@infrastructure/adapter/persistence/media-file/MinioMediaFileStorageAdapter';
-import { TypeOrmMediaRepositoryAdapter } from '@infrastructure/adapter/persistence/typeorm/repository/media/TypeOrmMediaRepositoryAdapter';
-import { TypeOrmPostRepositoryAdapter } from '@infrastructure/adapter/persistence/typeorm/repository/post/TypeOrmPostRepositoryAdapter';
-import { TypeOrmUserRepositoryAdapter } from '@infrastructure/adapter/persistence/typeorm/repository/user/TypeOrmUserRepositoryAdapter';
+import { PrismaService } from '@infrastructure/adapter/persistence/PrismaService';
+import { MediaRepositoryAdapter } from '@infrastructure/adapter/persistence/repository/media/MediaRepositoryAdapter';
+import { PostRepositoryAdapter } from '@infrastructure/adapter/persistence/repository/post/PostRepositoryAdapter';
+import { UserRepositoryAdapter } from '@infrastructure/adapter/persistence/repository/user/UserRepositoryAdapter';
 import { Module, Provider } from '@nestjs/common';
-import { Connection } from 'typeorm';
 
 const persistenceProviders: Provider[] = [
+  PrismaService,
   {
     provide : MediaDITokens.MediaFileStorage,
     useClass: MinioMediaFileStorageAdapter,
   },
   {
-    provide   : MediaDITokens.MediaRepository,
-    useFactory: connection => connection.getCustomRepository(TypeOrmMediaRepositoryAdapter),
-    inject    : [Connection]
+    provide : MediaDITokens.MediaRepository,
+    useClass: MediaRepositoryAdapter,
   },
   {
-    provide   : PostDITokens.PostRepository,
-    useFactory: connection => connection.getCustomRepository(TypeOrmPostRepositoryAdapter),
-    inject    : [Connection]
+    provide : PostDITokens.PostRepository,
+    useClass: PostRepositoryAdapter,
   },
   {
-    provide   : UserDITokens.UserRepository,
-    useFactory: connection => connection.getCustomRepository(TypeOrmUserRepositoryAdapter),
-    inject    : [Connection]
+    provide : UserDITokens.UserRepository,
+    useClass: UserRepositoryAdapter,
   }
 ];
 
 @Module({
   providers: persistenceProviders,
   exports: [
+    PrismaService,
     MediaDITokens.MediaFileStorage,
     MediaDITokens.MediaRepository,
     PostDITokens.PostRepository,

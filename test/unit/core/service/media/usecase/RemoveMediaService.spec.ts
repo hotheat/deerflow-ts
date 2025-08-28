@@ -16,7 +16,8 @@ import { v4 } from 'uuid';
 describe('RemoveMediaService', () => {
   let removeMediaService: RemoveMediaUseCase;
   let mediaRepository: MediaRepositoryPort;
-  let postRepository: PostRepositoryPort;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  let _postRepository: PostRepositoryPort;
   
   beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -44,7 +45,7 @@ describe('RemoveMediaService', () => {
   
     removeMediaService = module.get<RemoveMediaUseCase>(MediaDITokens.RemoveMediaUseCase);
     mediaRepository = module.get<MediaRepositoryPort>('MediaRepository');
-    postRepository = module.get<PostRepositoryPort>('PostRepository');
+    _postRepository = module.get<PostRepositoryPort>('PostRepository');
   });
   
   describe('execute', () => {

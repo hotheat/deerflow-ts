@@ -1,0 +1,74 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  AUTHOR
+  GUEST
+
+  @@map("USER_ROLE_ENUM")
+}
+
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+
+  @@map("POST_STATUS_ENUM")
+}
+
+enum MediaType {
+  IMAGE
+
+  @@map("MEDIA_TYPE_ENUM")
+}
+
+model User {
+  id        String    @id @default(dbgenerated("uuid_generate_v1mc()")) @db.Uuid
+  firstName String?   @map("firstName") @db.VarChar(100)
+  lastName  String?   @map("lastName") @db.VarChar(100)
+  email     String?   @db.VarChar(100)
+  role      UserRole?
+  password  String?   @db.VarChar(200)
+  createdAt DateTime? @map("createdAt") @db.Timestamptz(6)
+  editedAt  DateTime? @map("editedAt") @db.Timestamptz(6)
+  removedAt DateTime? @map("removedAt") @db.Timestamptz(6)
+
+  @@map("user")
+}
+
+model Post {
+  id          String      @id @default(dbgenerated("uuid_generate_v1mc()")) @db.Uuid
+  ownerId     String?     @map("ownerId") @db.Uuid
+  title       String?     @db.VarChar(100)
+  imageId     String?     @map("imageId") @db.Uuid
+  content     String?     @db.VarChar(10000)
+  status      PostStatus?
+  createdAt   DateTime?   @map("createdAt") @db.Timestamptz(6)
+  editedAt    DateTime?   @map("editedAt") @db.Timestamptz(6)
+  publishedAt DateTime?   @map("publishedAt") @db.Timestamptz(6)
+  removedAt   DateTime?   @map("removedAt") @db.Timestamptz(6)
+
+  @@map("post")
+}
+
+model Media {
+  id           String     @id @default(dbgenerated("uuid_generate_v1mc()")) @db.Uuid
+  ownerId      String?    @map("ownerId") @db.Uuid
+  name         String?    @db.VarChar(100)
+  type         MediaType?
+  relativePath String?    @map("relativePath") @db.VarChar(200)
+  size         Int?
+  ext          String?    @db.VarChar(10)
+  mimetype     String?    @db.VarChar(100)
+  createdAt    DateTime?  @map("createdAt") @db.Timestamptz(6)
+  editedAt     DateTime?  @map("editedAt") @db.Timestamptz(6)
+  removedAt    DateTime?  @map("removedAt") @db.Timestamptz(6)
+
+  @@map("media")
+}

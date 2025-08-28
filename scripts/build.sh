@@ -13,23 +13,28 @@ clear() {
     rm -rf ./dist/*
 }
 
+generate_prisma() {
+    ./node_modules/.bin/prisma generate
+}
+
 tsc() {
     ./node_modules/.bin/tsc --project tsconfig.build.json --skipLibCheck
 }
 
 copy() {
     cp ./package.json ./dist/package.json
-    cp ./package-lock.json ./dist/package-lock.json
+    cp ./pnpm-lock.yaml ./dist/pnpm-lock.yaml
 }
 
 install() {
     cd ./dist
-    npm ci --production
+    pnpm install --prod --frozen-lockfile
     cd ..
 }
 
 compile() {
     clear
+    generate_prisma
     tsc
     copy
     install

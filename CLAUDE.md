@@ -9,24 +9,45 @@ This is a TypeScript Clean Architecture implementation called "IPoster" - a fict
 ## Common Commands
 
 ### Development
-- **Build**: `npm run build` - Runs custom build script that compiles TypeScript, copies package files, and installs production dependencies
-- **Start**: `npm run start` - Starts the compiled application
-- **Start Local**: `npm run start:local` - Copies local environment file and starts with dotenv config
-- **Lint**: `npm run lint` - ESLint check on src and test directories
-- **Lint Fix**: `npm run lint:fix` - Auto-fix linting issues
+- **Build**: `pnpm run build` - Runs custom build script that compiles TypeScript, copies package files, and installs production dependencies
+- **Start**: `pnpm run start` - Starts the compiled application
+- **Start Local**: `pnpm run start:local` - Copies local environment file and starts with dotenv config
+- **Development Server**: `pnpm run dev` - Start development server with nodemon for hot reload
+- **Development Debug**: `pnpm run dev:debug` - Start development server with debugging enabled
+- **Lint**: `pnpm run lint` - ESLint check on src and test directories
+- **Lint Fix**: `pnpm run lint:fix` - Auto-fix linting issues
 
 ### Testing
-- **Run Tests**: `npm run test` - Jest tests with custom configuration
-- **Test Coverage**: `npm run test:cov` - Jest with coverage reports
+- **Run Tests**: `pnpm run test` - Jest tests with custom configuration
+- **Test Coverage**: `pnpm run test:cov` - Jest with coverage reports
 - **Test Environment**: `docker-compose -f docker-compose.test.yaml up -d` - Start test dependencies (PostgreSQL, Minio)
+- **Run Single Test**: `pnpm run test -- --testNamePattern="TestName"` - Run specific test by name
+- **Run Test File**: `pnpm run test path/to/test.spec.ts` - Run specific test file
 
 ### Database
-- **Create Migration**: `npm run migration:create -- [MigrationName]`
-- **Revert Migration**: `npm run migration:revert`
+- **Create Migration**: `pnpm run migration:create -- [MigrationName]`
+- **Revert Migration**: `pnpm run migration:revert`
 
 ### Library Management
-- **Check Updates**: `npm run lib:check` - Show available library updates
-- **Upgrade Libraries**: `npm run lib:upgrade` - Update all libraries
+- **Check Updates**: `pnpm run lib:check` - Show available library updates
+- **Upgrade Libraries**: `pnpm run lib:upgrade` - Update all libraries
+
+### Docker Services
+- **Start Local Services**: `docker-compose -f docker-compose.local.yaml up -d` - PostgreSQL and Minio for development
+- **Stop Local Services**: `docker-compose -f docker-compose.local.yaml down`
+- **Start Test Services**: `docker-compose -f docker-compose.test.yaml up -d` - Test environment dependencies
+- **Stop Test Services**: `docker-compose -f docker-compose.test.yaml down`
+
+### Makefile Commands
+Available via `make <command>`:
+- **make help** - Show all available make commands
+- **make install** - Install dependencies with pnpm
+- **make build** - Build the project
+- **make start-local** - Start with local environment
+- **make dev** - Start development server
+- **make lint** - Run linting
+- **make test** - Run tests
+- **make clean** - Clean build artifacts and node_modules
 
 ## Architecture Overview
 
@@ -39,7 +60,7 @@ The application follows a 4-layer Clean Architecture:
    - `service/` - Application services implementing domain use cases
 
 2. **Infrastructure** (`src/infrastructure/`) - External concerns and adapters
-   - `adapter/` - Database (TypeORM), file storage (Minio), message bus adapters
+   - `adapter/` - Database (TypeORM), file storage (Minio) adapters
    - `config/` - Configuration classes for API server, database, file storage
    - `transaction/` - Transactional use case wrappers
 
@@ -49,64 +70,33 @@ The application follows a 4-layer Clean Architecture:
 
 ### Key Architectural Patterns
 
-- **CQRS**: Command Query Responsibility Segregation with separate handlers
 - **Ports & Adapters**: Interfaces define contracts, adapters implement external systems
 - **Dependency Injection**: NestJS DI container with custom tokens in `CoreDITokens`
 - **Repository Pattern**: Domain repositories with TypeORM adapters
 - **Use Case Pattern**: Each business operation is a separate use case class
 
-### Message Bus System (CQRS Implementation)
+### Cross-Domain Communication
 
-The project implements CQRS through three message buses managed by NestJS:
+The project uses direct dependency injection for cross-domain communication:
 
-#### **QueryBus** - Cross-Domain Data Queries
-- **Purpose**: Handle read operations that cross domain boundaries
-- **Usage**: `await this.queryBus.sendQuery(QueryObject.new(params))`
-- **Example**: Post domain querying Media domain for image existence validation
-- **Benefits**: 
-  - Maintains domain boundaries and loose coupling
-  - Enables specialized query optimization in target domain
-  - Supports permission checks within query handlers
-  - Avoids direct cross-domain repository dependencies
+- **Direct Repository Access**: Services directly inject repositories from other domains when needed
+- **Example**: `CreatePostService` injects `MediaRepositoryPort` and `UserRepositoryPort` to validate media and user access
+- **Transactional Consistency**: Cross-domain operations are handled within the same transaction using `typeorm-transactional-cls-hooked`
 
 ```typescript
-// Example: CreatePostService querying Media domain
-const mediaPreview = await this.queryBus.sendQuery(
-  GetMediaPreviewQuery.new({id: payload.imageId, ownerId: payload.executorId})
-);
+// Example: CreatePostService accessing multiple domains
+export class CreatePostService implements CreatePostUseCase {
+  constructor(
+    private readonly postRepository: PostRepositoryPort,
+    private readonly userRepository: UserRepositoryPort,
+    private readonly mediaRepository: MediaRepositoryPort,
+  ) {}
+  
+  // Direct cross-domain validation and data access
+  const postOwner = await this.userRepository.findUser({id: payload.executorId});
+  const postMedia = await this.mediaRepository.findMedia({id: payload.imageId});
+}
 ```
-
-#### **EventBus** - Asynchronous Domain Events  
-- **Purpose**: Handle side effects and cross-domain notifications
-- **Usage**: `await this.eventBus.sendEvent(EventObject.new(params))`
-- **Example**: Media removal triggering post image cleanup
-- **Benefits**:
-  - Decoupled event-driven communication
-  - Asynchronous processing of side effects
-  - Support for multiple event handlers per event
-
-```typescript
-// Example: RemoveMediaService notifying other domains
-await this.eventBus.sendEvent(MediaRemovedEvent.new(mediaId, ownerId, type));
-```
-
-#### **CommandBus** - Command Processing
-- **Note**: In this project, Use Cases serve as Command handlers directly
-- Commands are processed through direct Use Case invocation from Controllers
-- This simplifies the architecture while maintaining CQRS principles
-
-#### **Message Bus Architecture Layers**
-1. **Core Layer**: Defines abstract `QueryBusPort`, `EventBusPort` interfaces
-2. **Infrastructure Layer**: Implements adapters (`NestQueryBusAdapter`, `NestEventBusAdapter`)
-3. **Handler Layer**: Two-tier system
-   - `@infrastructure/handler`: NestJS CQRS integration wrappers
-   - `@core/service/handler`: Business logic implementations
-
-#### **Cross-Domain Query Rules**
-- **Avoid Direct Repository Access**: Never inject repositories from other domains
-- **Use QueryBus for Cross-Domain Reads**: Always use message bus for cross-domain data access
-- **Include Permission Context**: Queries should include user/permission context (e.g., `ownerId`)
-- **Return Minimal Data**: Query results should contain only necessary data for the requesting domain
 
 ### Path Aliases
 - `@core/*` → `src/core/*`
@@ -134,10 +124,6 @@ Each domain module (e.g., `@src/core/domain/media`) follows a consistent structu
 - `type/` subdirectory contains entity payload interfaces (CreateMediaEntityPayload, EditMediaEntityPayload)
 - Entities extend base classes (Entity, RemovableEntity) and use class-validator decorators
 
-#### **`handler/`** - Query Handlers (CQRS)
-- Implements query-side of CQRS pattern
-- Example: `DoesMediaExistQueryHandler.ts` - Handles existence checks
-- Separate from use cases to maintain command/query separation
 
 #### **`port/`** - Interface Definitions (Hexagonal Architecture)
 - **`persistence/`** - Repository and storage interface contracts
@@ -167,9 +153,9 @@ Each domain module (e.g., `@src/core/domain/media`) follows a consistent structu
 
 ### Local Setup
 1. Start external services: `docker-compose -f docker-compose.local.yaml up -d`
-2. Install dependencies: `npm install`
-3. Build application: `npm run build`
-4. Start with local config: `npm run start:local`
+2. Install dependencies: `pnpm install`
+3. Build application: `pnpm run build`
+4. Start with local config: `pnpm run start:local`
 5. API docs available at: http://localhost:3005/documentation
 
 ### Testing Setup
@@ -192,3 +178,16 @@ Each domain module (e.g., `@src/core/domain/media`) follows a consistent structu
 - Custom build script compiles to `dist/` with production dependencies
 - Module aliases configured in both TypeScript and Jest configurations
 - Transactional use cases use `typeorm-transactional-cls-hooked`
+- LangChain integration for potential AI features
+- Jest testing with sonar reporter and junit output
+- ESLint with TypeScript parser for code quality
+
+## Build Process Details
+
+The custom build script (`scripts/build.sh`) performs:
+1. **Clear**: Removes existing dist/ directory
+2. **Compile**: TypeScript compilation with skipLibCheck
+3. **Copy**: Copies package.json and pnpm-lock.yaml to dist/
+4. **Install**: Production dependencies installed in dist/ directory
+
+This creates a self-contained dist/ folder ready for deployment.

@@ -13,6 +13,7 @@ import { GetPostListService } from '@core/service/post/usecase/GetPostListServic
 import { GetPostService } from '@core/service/post/usecase/GetPostService';
 import { PublishPostService } from '@core/service/post/usecase/PublishPostService';
 import { RemovePostService } from '@core/service/post/usecase/RemovePostService';
+import { PrismaService } from '@infrastructure/adapter/persistence/PrismaService';
 import { TransactionalUseCaseWrapper } from '@infrastructure/transaction/TransactionalUseCaseWrapper';
 import { Module, Provider } from '@nestjs/common';
 
@@ -20,19 +21,19 @@ import { Module, Provider } from '@nestjs/common';
 const useCaseProviders: Provider[] = [
   {
     provide   : PostDITokens.CreatePostUseCase,
-    useFactory: (postRepository, userRepository, mediaRepository) => {
+    useFactory: (postRepository, userRepository, mediaRepository, prismaService) => {
       const service: CreatePostUseCase = new CreatePostService(postRepository, userRepository, mediaRepository);
-      return new TransactionalUseCaseWrapper(service);
+      return new TransactionalUseCaseWrapper(service, prismaService);
     },
-    inject    : [PostDITokens.PostRepository, UserDITokens.UserRepository, MediaDITokens.MediaRepository]
+    inject    : [PostDITokens.PostRepository, UserDITokens.UserRepository, MediaDITokens.MediaRepository, PrismaService]
   },
   {
     provide   : PostDITokens.EditPostUseCase,
-    useFactory: (postRepository, mediaRepository) => {
+    useFactory: (postRepository, mediaRepository, prismaService) => {
       const service: EditPostUseCase = new EditPostService(postRepository, mediaRepository);
-      return new TransactionalUseCaseWrapper(service);
+      return new TransactionalUseCaseWrapper(service, prismaService);
     },
-    inject    : [PostDITokens.PostRepository, MediaDITokens.MediaRepository]
+    inject    : [PostDITokens.PostRepository, MediaDITokens.MediaRepository, PrismaService]
   },
   {
     provide   : PostDITokens.GetPostListUseCase,
@@ -46,19 +47,19 @@ const useCaseProviders: Provider[] = [
   },
   {
     provide   : PostDITokens.PublishPostUseCase,
-    useFactory: (postRepository) => {
+    useFactory: (postRepository, prismaService) => {
       const service: PublishPostUseCase = new PublishPostService(postRepository);
-      return new TransactionalUseCaseWrapper(service);
+      return new TransactionalUseCaseWrapper(service, prismaService);
     },
-    inject    : [PostDITokens.PostRepository]
+    inject    : [PostDITokens.PostRepository, PrismaService]
   },
   {
     provide   : PostDITokens.RemovePostUseCase,
-    useFactory: (postRepository) => {
+    useFactory: (postRepository, prismaService) => {
       const service: RemovePostUseCase = new RemovePostService(postRepository);
-      return new TransactionalUseCaseWrapper(service);
+      return new TransactionalUseCaseWrapper(service, prismaService);
     },
-    inject    : [PostDITokens.PostRepository]
+    inject    : [PostDITokens.PostRepository, PrismaService]
   },
 ];
 

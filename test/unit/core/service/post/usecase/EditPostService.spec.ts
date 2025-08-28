@@ -3,9 +3,7 @@ import { MediaType } from '@core/common/enums/MediaEnums';
 import { UserRole } from '@core/common/enums/UserEnums';
 import { Exception } from '@core/common/exception/Exception';
 import { ClassValidationDetails } from '@core/common/util/class-validator/ClassValidator';
-import { Media } from '@core/domain/media/entity/Media';
 import { MediaRepositoryPort } from '@core/domain/media/port/persistence/MediaRepositoryPort';
-import { FileMetadata } from '@core/domain/media/value-object/FileMetadata';
 import { PostDITokens } from '@core/domain/post/di/PostDITokens';
 import { Post } from '@core/domain/post/entity/Post';
 import { PostImage } from '@core/domain/post/entity/PostImage';
@@ -21,7 +19,8 @@ import { v4 } from 'uuid';
 describe('EditPostService', () => {
   let editPostService: EditPostUseCase;
   let postRepository: PostRepositoryPort;
-  let mediaRepository: MediaRepositoryPort;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  let _mediaRepository: MediaRepositoryPort;
   
   beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -49,7 +48,7 @@ describe('EditPostService', () => {
   
     editPostService = module.get<EditPostUseCase>(PostDITokens.EditPostUseCase);
     postRepository = module.get<PostRepositoryPort>('PostRepository');
-    mediaRepository = module.get<MediaRepositoryPort>('MediaRepository');
+    _mediaRepository = module.get<MediaRepositoryPort>('MediaRepository');
   });
   
   describe('execute', () => {

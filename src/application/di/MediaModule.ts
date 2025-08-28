@@ -10,6 +10,7 @@ import { EditMediaService } from '@core/service/media/usecase/EditMediaService';
 import { GetMediaListService } from '@core/service/media/usecase/GetMediaListService';
 import { GetMediaService } from '@core/service/media/usecase/GetMediaService';
 import { RemoveMediaService } from '@core/service/media/usecase/RemoveMediaService';
+import { PrismaService } from '@infrastructure/adapter/persistence/PrismaService';
 import { TransactionalUseCaseWrapper } from '@infrastructure/transaction/TransactionalUseCaseWrapper';
 import { Module } from '@nestjs/common';
 import { Provider } from '@nestjs/common/interfaces/modules/provider.interface';
@@ -18,20 +19,20 @@ import { Provider } from '@nestjs/common/interfaces/modules/provider.interface';
 const useCaseProviders: Provider[] = [
   {
     provide   : MediaDITokens.CreateMediaUseCase,
-    useFactory: (mediaRepository, mediaFileStorage) => {
+    useFactory: (mediaRepository, mediaFileStorage, prismaService) => {
       const service: CreateMediaUseCase = new CreateMediaService(mediaRepository, mediaFileStorage);
-      return new TransactionalUseCaseWrapper(service);
+      return new TransactionalUseCaseWrapper(service, prismaService);
     },
-    inject    : [MediaDITokens.MediaRepository, MediaDITokens.MediaFileStorage]
+    inject    : [MediaDITokens.MediaRepository, MediaDITokens.MediaFileStorage, PrismaService]
   },
   {
     provide   : MediaDITokens.EditMediaUseCase,
-    useFactory: (mediaRepository) => {
+    useFactory: (mediaRepository, prismaService) => {
       const service: EditMediaUseCase = new EditMediaService(mediaRepository);
-      return new TransactionalUseCaseWrapper(service);
+      return new TransactionalUseCaseWrapper(service, prismaService);
       
     },
-    inject    : [MediaDITokens.MediaRepository]
+    inject    : [MediaDITokens.MediaRepository, PrismaService]
   },
   {
     provide   : MediaDITokens.GetMediaListUseCase,
@@ -45,11 +46,11 @@ const useCaseProviders: Provider[] = [
   },
   {
     provide   : MediaDITokens.RemoveMediaUseCase,
-    useFactory: (mediaRepository, postRepository) => {
+    useFactory: (mediaRepository, postRepository, prismaService) => {
       const service: RemoveMediaUseCase = new RemoveMediaService(mediaRepository, postRepository);
-      return new TransactionalUseCaseWrapper(service);
+      return new TransactionalUseCaseWrapper(service, prismaService);
     },
-    inject    : [MediaDITokens.MediaRepository, PostDITokens.PostRepository]
+    inject    : [MediaDITokens.MediaRepository, PostDITokens.PostRepository, PrismaService]
   },
 ];
 

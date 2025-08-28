@@ -1,21 +1,29 @@
 import { TransactionalUseCase } from '@core/common/usecase/TransactionalUseCase';
 import { UseCase } from '@core/common/usecase/UseCase';
-import { runOnTransactionCommit, runOnTransactionRollback, Transactional } from 'typeorm-transactional-cls-hooked';
+import { PrismaService } from '@infrastructure/adapter/persistence/PrismaService';
 
 export class TransactionalUseCaseWrapper<TUseCasePort, TUseCaseResult> implements UseCase<TUseCasePort, TUseCaseResult> {
   
   constructor(
     private readonly useCase: TransactionalUseCase<TUseCasePort, TUseCaseResult>,
+    private readonly prismaService: PrismaService,
   ) {}
   
-  @Transactional()
   public async execute(port: TUseCasePort): Promise<TUseCaseResult> {
-    runOnTransactionRollback(async (error: Error) => this.useCase.onRollback?.(error, port));
-    
-    const result: TUseCaseResult = await this.useCase.execute(port);
-    runOnTransactionCommit(async () => this.useCase.onCommit?.(result, port));
-    
-    return result;
+    return this.prismaService.runInTransaction(async () => {
+      try {
+        const result: TUseCaseResult = await this.useCase.execute(port);
+        
+        // Execute commit callback if defined
+        await this.useCase.onCommit?.(result, port);
+        
+        return result;
+      } catch (error) {
+        // Execute rollback callback if defined
+        await this.useCase.onRollback?.(error as Error, port);
+        throw error;
+      }
+    });
   }
   
 }

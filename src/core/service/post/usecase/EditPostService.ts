@@ -38,7 +38,6 @@ export class EditPostService implements EditPostUseCase {
     return PostUseCaseDto.newFromPost(post);
   }
   
-  /** ¯\_(ツ)_/¯ **/
   private async defineNewImage(payload: EditPostPort, post: Post): Promise<Optional<Nullable<PostImage>>> {
     let newPostImage: Optional<Nullable<PostImage>>;
     

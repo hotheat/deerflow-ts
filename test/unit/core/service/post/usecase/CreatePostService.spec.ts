@@ -194,7 +194,7 @@ async function createPostImage(customId?: string, customRelativePath?: string): 
 }
 
 async function createMockMedia(): Promise<Media> {
-  const metadata = new FileMetadata('/relative/path', 'image.jpg', 1024, 'image/jpeg');
+  const metadata: FileMetadata = new FileMetadata('/relative/path', 'image.jpg', 1024, 'image/jpeg');
   
   return Media.new({
     id: v4(),

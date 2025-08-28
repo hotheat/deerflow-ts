@@ -9,7 +9,7 @@ export class ResponseExpect {
   }
   
   public static data(options: {response: CoreApiResponse<unknown>, passFields?: string[]}, expected: Nullable<unknown>): void {
-    const toFilterObject = (object: any): unknown => {
+    const toFilterObject = (object: unknown): unknown => {
       return options.passFields
         ? TestUtil.filterObject(object, options.passFields)
         : object;

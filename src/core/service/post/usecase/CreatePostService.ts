@@ -32,9 +32,11 @@ export class CreatePostService implements CreatePostUseCase {
     if (payload.imageId) {
       postMedia = await this.mediaRepository.findMedia({id: payload.imageId});
       CoreAssert.notEmpty(postMedia, Exception.new({code: Code.ENTITY_NOT_FOUND_ERROR, overrideMessage: 'Post image not found.'}));
-      
-      const hasAccess: boolean = postMedia!.getOwnerId() === payload.executorId;
-      CoreAssert.isTrue(hasAccess, Exception.new({code: Code.ACCESS_DENIED_ERROR, overrideMessage: 'Access denied to media.'}));
+
+      if (postMedia) {
+        const hasAccess: boolean = postMedia.getOwnerId() === payload.executorId;
+        CoreAssert.isTrue(hasAccess, Exception.new({code: Code.ACCESS_DENIED_ERROR, overrideMessage: 'Access denied to media.'}));
+      }
     }
     
     const post: Post = await Post.new({

@@ -1,4 +1,5 @@
 import { AuthModule } from '@application/di/AuthModule';
+import { ChatModule } from '@application/di/ChatModule';
 import { InfrastructureModule } from '@application/di/InfrastructureModule';
 import { MediaModule } from '@application/di/MediaModule';
 import { PersistenceModule } from '@application/di/PersistenceModule';
@@ -14,6 +15,7 @@ import { Module } from '@nestjs/common';
     UserModule,
     MediaModule,
     PostModule,
+    ChatModule,
   ]
 })
 export class RootModule {}
