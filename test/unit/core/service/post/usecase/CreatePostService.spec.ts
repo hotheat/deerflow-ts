@@ -4,6 +4,7 @@ import { UserRole } from '@core/common/enums/UserEnums';
 import { Exception } from '@core/common/exception/Exception';
 import { ClassValidationDetails } from '@core/common/util/class-validator/ClassValidator';
 import { Media } from '@core/domain/media/entity/Media';
+import { MediaDITokens } from '@core/domain/media/di/MediaDITokens';
 import { MediaRepositoryPort } from '@core/domain/media/port/persistence/MediaRepositoryPort';
 import { FileMetadata } from '@core/domain/media/value-object/FileMetadata';
 import { PostDITokens } from '@core/domain/post/di/PostDITokens';
@@ -15,6 +16,7 @@ import { CreatePostPort } from '@core/domain/post/port/usecase/CreatePostPort';
 import { CreatePostUseCase } from '@core/domain/post/usecase/CreatePostUseCase';
 import { PostUseCaseDto } from '@core/domain/post/usecase/dto/PostUseCaseDto';
 import { User } from '@core/domain/user/entity/User';
+import { UserDITokens } from '@core/domain/user/di/UserDITokens';
 import { UserRepositoryPort } from '@core/domain/user/port/persistence/UserRepositoryPort';
 import { CreatePostService } from '@core/service/post/usecase/CreatePostService';
 import { Test, TestingModule } from '@nestjs/testing';
@@ -32,22 +34,22 @@ describe('CreatePostService', () => {
         {
           provide: PostDITokens.CreatePostUseCase,
           useFactory: (postRepository, userRepository, mediaRepository) => new CreatePostService(postRepository, userRepository, mediaRepository),
-          inject: ['PostRepository', 'UserRepository', 'MediaRepository']
+          inject: [PostDITokens.PostRepository, UserDITokens.UserRepository, MediaDITokens.MediaRepository]
         },
         {
-          provide: 'PostRepository',
+          provide: PostDITokens.PostRepository,
           useValue: {
             addPost: jest.fn()
           }
         },
         {
-          provide: 'UserRepository',
+          provide: UserDITokens.UserRepository,
           useValue: {
             findUser: jest.fn()
           }
         },
         {
-          provide: 'MediaRepository',
+          provide: MediaDITokens.MediaRepository,
           useValue: {
             findMedia: jest.fn()
           }
@@ -56,9 +58,9 @@ describe('CreatePostService', () => {
     }).compile();
   
     createPostService = module.get<CreatePostUseCase>(PostDITokens.CreatePostUseCase);
-    postRepository = module.get<PostRepositoryPort>('PostRepository');
-    userRepository = module.get<UserRepositoryPort>('UserRepository');
-    mediaRepository = module.get<MediaRepositoryPort>('MediaRepository');
+    postRepository = module.get<PostRepositoryPort>(PostDITokens.PostRepository);
+    userRepository = module.get<UserRepositoryPort>(UserDITokens.UserRepository);
+    mediaRepository = module.get<MediaRepositoryPort>(MediaDITokens.MediaRepository);
   });
   
   describe('execute', () => {
@@ -66,7 +68,7 @@ describe('CreatePostService', () => {
     test('Expect it creates post', async () => {
       const mockPostId: string = v4();
       const mockUser: User = await createMockUser();
-      const mockMedia: Media = await createMockMedia();
+      const mockMedia: Media = await createMockMedia(mockUser.getId());
       
       jest.spyOn(userRepository, 'findUser').mockResolvedValueOnce(mockUser);
       jest.spyOn(mediaRepository, 'findMedia').mockResolvedValueOnce(mockMedia);
@@ -193,12 +195,17 @@ async function createPostImage(customId?: string, customRelativePath?: string): 
   return PostImage.new(id, relativePath);
 }
 
-async function createMockMedia(): Promise<Media> {
-  const metadata: FileMetadata = new FileMetadata('/relative/path', 'image.jpg', 1024, 'image/jpeg');
+async function createMockMedia(ownerId?: string): Promise<Media> {
+  const metadata: FileMetadata = await FileMetadata.new({
+    relativePath: '/relative/path',
+    size: 1024,
+    ext: 'jpg',
+    mimetype: 'image/jpeg'
+  });
   
   return Media.new({
     id: v4(),
-    ownerId: v4(),
+    ownerId: ownerId || v4(),
     name: 'Test Image',
     type: MediaType.IMAGE,
     metadata: metadata

@@ -9,7 +9,6 @@ import { GetUserPort } from '@core/domain/user/port/usecase/GetUserPort';
 import { UserUseCaseDto } from '@core/domain/user/usecase/dto/UserUseCaseDto';
 import { GetUserUseCase } from '@core/domain/user/usecase/GetUserUseCase';
 import { GetUserService } from '@core/service/user/usecase/GetUserService';
-import { TypeOrmUserRepositoryAdapter } from '@infrastructure/adapter/persistence/typeorm/repository/user/TypeOrmUserRepositoryAdapter';
 import { Test, TestingModule } from '@nestjs/testing';
 import { v4 } from 'uuid';
 
@@ -27,7 +26,9 @@ describe('GetUserService', () => {
         },
         {
           provide: UserDITokens.UserRepository,
-          useClass: TypeOrmUserRepositoryAdapter
+          useValue: {
+            findUser: jest.fn()
+          }
         },
       ]
     }).compile();

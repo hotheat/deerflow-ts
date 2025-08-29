@@ -9,8 +9,6 @@ import { PostRepositoryPort } from '@core/domain/post/port/persistence/PostRepos
 import { PublishPostPort } from '@core/domain/post/port/usecase/PublishPostPort';
 import { PublishPostUseCase } from '@core/domain/post/usecase/PublishPostUseCase';
 import { PublishPostService } from '@core/service/post/usecase/PublishPostService';
-import { TypeOrmPostRepositoryAdapter } from '@infrastructure/adapter/persistence/typeorm/repository/post/TypeOrmPostRepositoryAdapter';
-import { CqrsModule } from '@nestjs/cqrs';
 import { Test, TestingModule } from '@nestjs/testing';
 import { v4 } from 'uuid';
 
@@ -20,7 +18,6 @@ describe('PublishPostService', () => {
   
   beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      imports: [CqrsModule],
       providers: [
         {
           provide: PostDITokens.PublishPostUseCase,
@@ -29,7 +26,10 @@ describe('PublishPostService', () => {
         },
         {
           provide: PostDITokens.PostRepository,
-          useClass: TypeOrmPostRepositoryAdapter
+          useValue: {
+            findPost: jest.fn(),
+            updatePost: jest.fn()
+          }
         },
       ]
     }).compile();

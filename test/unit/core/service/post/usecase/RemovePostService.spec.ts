@@ -9,8 +9,6 @@ import { PostRepositoryPort } from '@core/domain/post/port/persistence/PostRepos
 import { RemovePostPort } from '@core/domain/post/port/usecase/RemovePostPort';
 import { RemovePostUseCase } from '@core/domain/post/usecase/RemovePostUseCase';
 import { RemovePostService } from '@core/service/post/usecase/RemovePostService';
-import { TypeOrmPostRepositoryAdapter } from '@infrastructure/adapter/persistence/typeorm/repository/post/TypeOrmPostRepositoryAdapter';
-import { CqrsModule } from '@nestjs/cqrs';
 import { Test, TestingModule } from '@nestjs/testing';
 import { v4 } from 'uuid';
 
@@ -20,7 +18,6 @@ describe('RemovePostService', () => {
   
   beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      imports: [CqrsModule],
       providers: [
         {
           provide: PostDITokens.RemovePostUseCase,
@@ -29,7 +26,10 @@ describe('RemovePostService', () => {
         },
         {
           provide: PostDITokens.PostRepository,
-          useClass: TypeOrmPostRepositoryAdapter
+          useValue: {
+            findPost: jest.fn(),
+            removePost: jest.fn()
+          }
         },
       ]
     }).compile();

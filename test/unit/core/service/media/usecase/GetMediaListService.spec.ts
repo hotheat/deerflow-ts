@@ -7,7 +7,6 @@ import { MediaUseCaseDto } from '@core/domain/media/usecase/dto/MediaUseCaseDto'
 import { GetMediaListUseCase } from '@core/domain/media/usecase/GetMediaListUseCase';
 import { FileMetadata } from '@core/domain/media/value-object/FileMetadata';
 import { GetMediaListService } from '@core/service/media/usecase/GetMediaListService';
-import { TypeOrmMediaRepositoryAdapter } from '@infrastructure/adapter/persistence/typeorm/repository/media/TypeOrmMediaRepositoryAdapter';
 import { Test, TestingModule } from '@nestjs/testing';
 import { v4 } from 'uuid';
 
@@ -25,7 +24,9 @@ describe('GetMediaListService', () => {
         },
         {
           provide: MediaDITokens.MediaRepository,
-          useClass: TypeOrmMediaRepositoryAdapter
+          useValue: {
+            findMedias: jest.fn()
+          }
         }
       ]
     }).compile();

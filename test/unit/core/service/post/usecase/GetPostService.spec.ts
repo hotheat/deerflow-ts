@@ -11,7 +11,6 @@ import { GetPostPort } from '@core/domain/post/port/usecase/GetPostPort';
 import { PostUseCaseDto } from '@core/domain/post/usecase/dto/PostUseCaseDto';
 import { GetPostUseCase } from '@core/domain/post/usecase/GetPostUseCase';
 import { GetPostService } from '@core/service/post/usecase/GetPostService';
-import { TypeOrmPostRepositoryAdapter } from '@infrastructure/adapter/persistence/typeorm/repository/post/TypeOrmPostRepositoryAdapter';
 import { Test, TestingModule } from '@nestjs/testing';
 import { v4 } from 'uuid';
 
@@ -29,7 +28,9 @@ describe('GetPostService', () => {
         },
         {
           provide: PostDITokens.PostRepository,
-          useClass: TypeOrmPostRepositoryAdapter
+          useValue: {
+            findPost: jest.fn()
+          }
         }
       ]
     }).compile();

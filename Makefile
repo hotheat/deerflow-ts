@@ -1,6 +1,6 @@
 # Makefile for TypeScript Clean Architecture Project
 
-.PHONY: help install build start start-local dev lint lint-fix test test-cov clean
+.PHONY: help install build start start-local dev lint lint-fix test test-cov test-e2e test-all clean
 
 # Default target
 help:
@@ -12,8 +12,10 @@ help:
 	@echo "  dev          - Start development server with nodemon"
 	@echo "  lint         - Run ESLint checks"
 	@echo "  lint-fix     - Run ESLint with auto-fix"
-	@echo "  test         - Run tests"
-	@echo "  test-cov     - Run tests with coverage"
+	@echo "  test         - Run unit tests only"
+	@echo "  test-cov     - Run unit tests with coverage"
+	@echo "  test-e2e     - Run E2E tests only"
+	@echo "  test-all     - Run all tests (unit + E2E)"
 	@echo "  clean        - Clean build artifacts"
 
 # Dependencies
@@ -47,6 +49,12 @@ test:
 
 test-cov:
 	pnpm run test:cov
+
+test-e2e:
+	pnpm run test:e2e
+
+test-all:
+	pnpm run test:all
 
 # Database migrations
 migration-create:

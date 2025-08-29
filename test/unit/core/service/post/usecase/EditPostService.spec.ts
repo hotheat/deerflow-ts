@@ -3,7 +3,10 @@ import { MediaType } from '@core/common/enums/MediaEnums';
 import { UserRole } from '@core/common/enums/UserEnums';
 import { Exception } from '@core/common/exception/Exception';
 import { ClassValidationDetails } from '@core/common/util/class-validator/ClassValidator';
+import { Media } from '@core/domain/media/entity/Media';
+import { MediaDITokens } from '@core/domain/media/di/MediaDITokens';
 import { MediaRepositoryPort } from '@core/domain/media/port/persistence/MediaRepositoryPort';
+import { FileMetadata } from '@core/domain/media/value-object/FileMetadata';
 import { PostDITokens } from '@core/domain/post/di/PostDITokens';
 import { Post } from '@core/domain/post/entity/Post';
 import { PostImage } from '@core/domain/post/entity/PostImage';
@@ -19,8 +22,7 @@ import { v4 } from 'uuid';
 describe('EditPostService', () => {
   let editPostService: EditPostUseCase;
   let postRepository: PostRepositoryPort;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  let _mediaRepository: MediaRepositoryPort;
+  let mediaRepository: MediaRepositoryPort;
   
   beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -28,17 +30,17 @@ describe('EditPostService', () => {
         {
           provide: PostDITokens.EditPostUseCase,
           useFactory: (postRepository, mediaRepository) => new EditPostService(postRepository, mediaRepository),
-          inject: ['PostRepository', 'MediaRepository']
+          inject: [PostDITokens.PostRepository, MediaDITokens.MediaRepository]
         },
         {
-          provide: 'PostRepository',
+          provide: PostDITokens.PostRepository,
           useValue: {
             findPost: jest.fn(),
             updatePost: jest.fn()
           }
         },
         {
-          provide: 'MediaRepository',
+          provide: MediaDITokens.MediaRepository,
           useValue: {
             findMedia: jest.fn()
           }
@@ -47,18 +49,18 @@ describe('EditPostService', () => {
     }).compile();
   
     editPostService = module.get<EditPostUseCase>(PostDITokens.EditPostUseCase);
-    postRepository = module.get<PostRepositoryPort>('PostRepository');
-    _mediaRepository = module.get<MediaRepositoryPort>('MediaRepository');
+    postRepository = module.get<PostRepositoryPort>(PostDITokens.PostRepository);
+    mediaRepository = module.get<MediaRepositoryPort>(MediaDITokens.MediaRepository);
   });
   
   describe('execute', () => {
   
     test('Expect it edits post and updates record in repository', async () => {
       const mockPost: Post = await createPost();
-      const mockPostImagePreview: GetMediaPreviewQueryResult = await createPostImagePreview();
+      const mockMedia: Media = await createMockMedia(mockPost.getOwner().getId());
   
       jest.spyOn(postRepository, 'findPost').mockImplementation(async () => mockPost);
-      jest.spyOn(queryBus, 'sendQuery').mockImplementationOnce(async () => mockPostImagePreview);
+      jest.spyOn(mediaRepository, 'findMedia').mockImplementation(async () => mockMedia);
       jest.spyOn(postRepository, 'updatePost').mockImplementation(async () => undefined);
   
       jest.spyOn(postRepository, 'updatePost').mockClear();
@@ -67,14 +69,14 @@ describe('EditPostService', () => {
         executorId: mockPost.getOwner().getId(),
         postId    : mockPost.getId(),
         title     : v4(),
-        imageId   : mockPostImagePreview.id,
+        imageId   : mockMedia.getId(),
       };
       
       const expectedPost: Post = await Post.new({
         id       : mockPost.getId(),
         owner    : mockPost.getOwner(),
         title    : editPostPort.title!,
-        image    : await createPostImage(mockPostImagePreview.id, mockPostImagePreview.relativePath),
+        image    : await createPostImage(mockMedia.getId(), mockMedia.getMetadata().relativePath),
         createdAt: mockPost.getCreatedAt()
       });
   
@@ -110,15 +112,15 @@ describe('EditPostService', () => {
   
     test('When image not found, expect it throws Exception', async () => {
       const mockPost: Post = await createPost();
-      const mockPostImagePreview: GetMediaPreviewQueryResult = await createPostImagePreview();
+      const mockMedia: Media = await createMockMedia(mockPost.getOwner().getId());
   
       jest.spyOn(postRepository, 'findPost').mockImplementation(async () => mockPost);
-      jest.spyOn(queryBus, 'sendQuery').mockImplementationOnce(async () => undefined);
+      jest.spyOn(mediaRepository, 'findMedia').mockImplementation(async () => undefined);
       
       expect.hasAssertions();
     
       try {
-        const editPostPort: EditPostPort = {executorId: mockPost.getOwner().getId(), postId: v4(), imageId: mockPostImagePreview.id};
+        const editPostPort: EditPostPort = {executorId: mockPost.getOwner().getId(), postId: v4(), imageId: mockMedia.getId()};
         await editPostService.execute(editPostPort);
       
       } catch (e) {
@@ -170,9 +172,17 @@ async function createPostImage(customId?: string, customRelativePath?: string): 
   return PostImage.new(id, relativePath);
 }
 
-function createPostImagePreview(): GetMediaPreviewQueryResult {
-  const id: string = v4();
-  const relativePath: string = '/relative/path';
-  
-  return GetMediaPreviewQueryResult.new(id, MediaType.IMAGE, relativePath);
+async function createMockMedia(ownerId?: string): Promise<Media> {
+  return Media.new({
+    id: v4(),
+    ownerId: ownerId || v4(),
+    name: 'test-image.png',
+    type: MediaType.IMAGE,
+    metadata: await FileMetadata.new({
+      relativePath: '/relative/path',
+      size: 1024,
+      ext: 'png',
+      mimetype: 'image/png'
+    })
+  });
 }

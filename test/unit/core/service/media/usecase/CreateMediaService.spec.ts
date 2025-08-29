@@ -10,7 +10,6 @@ import { FileMetadata } from '@core/domain/media/value-object/FileMetadata';
 import { CreateFileMetadataValueObjectPayload } from '@core/domain/media/value-object/type/CreateFileMetadataValueObjectPayload';
 import { CreateMediaService } from '@core/service/media/usecase/CreateMediaService';
 import { MinioMediaFileStorageAdapter } from '@infrastructure/adapter/persistence/media-file/MinioMediaFileStorageAdapter';
-import { TypeOrmMediaRepositoryAdapter } from '@infrastructure/adapter/persistence/typeorm/repository/media/TypeOrmMediaRepositoryAdapter';
 import { Test, TestingModule } from '@nestjs/testing';
 import { v4 } from 'uuid';
 
@@ -29,7 +28,9 @@ describe('CreateMediaService', () => {
         },
         {
           provide: MediaDITokens.MediaRepository,
-          useClass: TypeOrmMediaRepositoryAdapter
+          useValue: {
+            addMedia: jest.fn()
+          }
         },
         {
           provide: MediaDITokens.MediaFileStorage,

@@ -246,14 +246,28 @@ curl -N -H "Accept: text/event-stream" -H "Authorization: Bearer YOUR_JWT_TOKEN"
 
 ---
 
-### **阶段 3: Chat 域模型创建**
-**目标**: 基于 chat_streams 表结构建立 Chat 域模型
-**测试方式**: 单元测试验证域实体和数据持久化
-**预计时间**: 1.5天
+### **阶段 3: Chat 域模型创建 - 精简测试版**
+**目标**: 实现基础的 chat_streams 表 CRUD 操作和测试 API
+**测试方式**: API 测试验证数据持久化功能
+**预计时间**: 0.5天
 
-#### 3.1 基于 chat_streams 表的域模型设计
+#### 3.1 Prisma Schema 更新
 
-基于给定的 `chat_streams` 表结构，我们设计一个简化的域模型：
+在现有 `schema.prisma` 中添加 chat_streams 模型：
+```prisma
+model ChatStream {
+  id        String   @id @default(cuid()) 
+  threadId  String   @unique @map("thread_id")
+  messages  Json     @map("messages")  
+  ts        DateTime @default(now()) @map("ts")
+
+  @@map("chat_streams")
+}
+```
+
+#### 3.2 精简域模型设计
+
+基于给定的 `chat_streams` 表结构，设计精简的域模型：
 
 ```sql
 CREATE TABLE IF NOT EXISTS chat_streams (
@@ -264,69 +278,50 @@ CREATE TABLE IF NOT EXISTS chat_streams (
 );
 ```
 
-域模型结构：
+精简域模型结构：
 ```
 src/core/domain/chat/
-├── di/
-│   └── ChatDITokens.ts              # DI token definitions
 ├── entity/
-│   ├── ChatStream.ts                # 聊天流实体
-│   ├── ChatMessage.ts               # 消息实体（纯值对象）
-│   └── type/
-│       ├── CreateChatStreamEntityPayload.ts
-│       └── ChatMessageType.ts
+│   ├── ChatStream.ts              # 简化实体
+│   └── type/CreateChatStreamEntityPayload.ts
 ├── port/
-│   ├── persistence/
-│   │   └── ChatStreamRepositoryPort.ts  # 聊天流仓库接口
-│   └── usecase/
-│       ├── StreamChatPort.ts            # 流式聊天用例接口
-│       └── GetChatStreamPort.ts         # 获取聊天流用例接口
+│   └── persistence/ChatStreamRepositoryPort.ts
 ├── usecase/
-│   ├── StreamChatUseCase.ts         # 流式聊天用例
-│   ├── GetChatStreamUseCase.ts      # 获取聊天流用例
-│   └── dto/
-│       └── ChatStreamUseCaseDto.ts      # 聊天流DTO
-└── value-object/
-    ├── ThreadId.ts                  # 线程ID值对象
-    └── type/
-        └── CreateThreadIdValueObjectPayload.ts
+│   ├── SaveChatStreamUseCase.ts   # 保存/更新用例
+│   └── dto/ChatStreamUseCaseDto.ts
+└── di/ChatDITokens.ts
 ```
 
-#### 3.2 核心实体设计
+#### 3.3 简化实体实现
 
 **ChatStream 实体** (`src/core/domain/chat/entity/ChatStream.ts`):
 ```typescript
 import { Entity } from '@core/common/entity/Entity';
-import { ChatMessage } from './ChatMessage';
-import { ThreadId } from '../value-object/ThreadId';
+import { IsNotEmpty, IsString, IsArray } from 'class-validator';
 import { ClassValidator } from '@core/common/util/ClassValidator';
-import { IsNotEmpty, IsArray, IsUUID } from 'class-validator';
 
 export interface CreateChatStreamEntityPayload {
   id?: string;
   threadId: string;
-  messages: ChatMessage[];
-  timestamp?: Date;
+  messages: any[];
+  ts?: Date;
 }
 
 export class ChatStream extends Entity<string> {
-  @IsUUID()
-  private _id: string;
-
+  @IsString()
   @IsNotEmpty()
-  private _threadId: ThreadId;
+  private readonly _threadId: string;
 
   @IsArray()
-  private _messages: ChatMessage[];
+  private _messages: any[];
 
-  private _timestamp: Date;
+  private _ts: Date;
 
   constructor(payload: CreateChatStreamEntityPayload) {
-    super(payload.id || crypto.randomUUID());
-    this._id = this.getId();
-    this._threadId = ThreadId.new({ value: payload.threadId });
+    super(payload.id);
+    this._threadId = payload.threadId;
     this._messages = payload.messages || [];
-    this._timestamp = payload.timestamp || new Date();
+    this._ts = payload.ts || new Date();
   }
 
   public static async new(payload: CreateChatStreamEntityPayload): Promise<ChatStream> {
@@ -336,199 +331,190 @@ export class ChatStream extends Entity<string> {
   }
 
   // 业务方法
-  public addMessage(message: ChatMessage): void {
-    this._messages.push(message);
-    this._timestamp = new Date();
-  }
-
-  public updateMessages(messages: ChatMessage[]): void {
+  public updateMessages(messages: any[]): void {
     this._messages = messages;
-    this._timestamp = new Date();
-  }
-
-  public getMessagesByRole(role: string): ChatMessage[] {
-    return this._messages.filter(msg => msg.role === role);
-  }
-
-  public getLastMessage(): ChatMessage | undefined {
-    return this._messages[this._messages.length - 1];
+    this._ts = new Date();
   }
 
   // Getters
-  get threadId(): ThreadId { return this._threadId; }
-  get messages(): ChatMessage[] { return [...this._messages]; }
-  get timestamp(): Date { return this._timestamp; }
-  get messageCount(): number { return this._messages.length; }
+  get threadId(): string { return this._threadId; }
+  get messages(): any[] { return [...this._messages]; }
+  get ts(): Date { return this._ts; }
 
   public async validate(): Promise<void> {
     const validator = await ClassValidator.new();
     await validator.validate(this);
   }
-
-  // 序列化为 JSONB 格式
-  public serializeMessages(): any {
-    return this._messages.map(msg => ({
-      role: msg.role,
-      content: msg.content,
-      timestamp: msg.timestamp,
-      metadata: msg.metadata
-    }));
-  }
-
-  // 从 JSONB 数据恢复
-  public static deserializeMessages(jsonData: any[]): ChatMessage[] {
-    return jsonData.map(data => ChatMessage.new({
-      role: data.role,
-      content: data.content,
-      timestamp: new Date(data.timestamp),
-      metadata: data.metadata || {}
-    }));
-  }
-}
-```
-
-**ChatMessage 实体**（简化版） (`src/core/domain/chat/entity/ChatMessage.ts`):
-```typescript
-export interface CreateChatMessageEntityPayload {
-  role: MessageRole;
-  content: string;
-  timestamp?: Date;
-  metadata?: Record<string, any>;
-}
-
-export class ChatMessage {
-  public readonly role: MessageRole;
-  public readonly content: string;
-  public readonly timestamp: Date;
-  public readonly metadata: Record<string, any>;
-
-  constructor(payload: CreateChatMessageEntityPayload) {
-    this.role = payload.role;
-    this.content = payload.content;
-    this.timestamp = payload.timestamp || new Date();
-    this.metadata = payload.metadata || {};
-  }
-
-  public static new(payload: CreateChatMessageEntityPayload): ChatMessage {
-    return new ChatMessage(payload);
-  }
-
-  public isFromUser(): boolean {
-    return this.role === MessageRole.USER;
-  }
-
-  public isFromAssistant(): boolean {
-    return this.role === MessageRole.ASSISTANT;
-  }
-
-  public hasMetadata(key: string): boolean {
-    return key in this.metadata;
-  }
-}
-
-export enum MessageRole {
-  USER = 'user',
-  ASSISTANT = 'assistant',
-  SYSTEM = 'system',
-  TOOL = 'tool',
-}
-```
-
-#### 3.3 ThreadId 值对象
-**ThreadId** (`src/core/domain/chat/value-object/ThreadId.ts`):
-```typescript
-import { ValueObject } from '@core/common/value-object/ValueObject';
-import { IsNotEmpty, IsString, MaxLength } from 'class-validator';
-import { ClassValidator } from '@core/common/util/ClassValidator';
-
-export interface CreateThreadIdValueObjectPayload {
-  value: string;
-}
-
-export class ThreadId extends ValueObject {
-  @IsNotEmpty()
-  @IsString()
-  @MaxLength(255)
-  private readonly _value: string;
-
-  constructor(payload: CreateThreadIdValueObjectPayload) {
-    super();
-    this._value = payload.value;
-  }
-
-  public static new(payload: CreateThreadIdValueObjectPayload): ThreadId {
-    const threadId = new ThreadId(payload);
-    threadId.validate();
-    return threadId;
-  }
-
-  public static generate(): ThreadId {
-    const timestamp = Date.now().toString(36);
-    const random = Math.random().toString(36).substr(2, 9);
-    return ThreadId.new({ value: `thread_${timestamp}_${random}` });
-  }
-
-  get value(): string {
-    return this._value;
-  }
-
-  public equals(other: ThreadId): boolean {
-    return this._value === other._value;
-  }
-
-  public toString(): string {
-    return this._value;
-  }
-
-  private validate(): void {
-    const validator = ClassValidator.new();
-    validator.validate(this);
-  }
 }
 ```
 
 #### 3.4 Repository 接口设计
+
 **ChatStreamRepositoryPort** (`src/core/domain/chat/port/persistence/ChatStreamRepositoryPort.ts`):
 ```typescript
-import { ChatStream } from '../../entity/ChatStream';
-import { ThreadId } from '../../value-object/ThreadId';
+import { ChatStream } from '../entity/ChatStream';
 
 export interface ChatStreamRepositoryPort {
   save(stream: ChatStream): Promise<ChatStream>;
-  findByThreadId(threadId: ThreadId): Promise<ChatStream | null>;
-  findByThreadIdString(threadId: string): Promise<ChatStream | null>;
-  exists(threadId: ThreadId): Promise<boolean>;
-  remove(stream: ChatStream): Promise<void>;
-  findRecentStreams(limit?: number): Promise<ChatStream[]>;
+  findByThreadId(threadId: string): Promise<ChatStream | null>;
 }
 ```
 
-#### 3.5 数据库迁移
-使用给定的表结构，无需额外创建迁移。表已经存在且包含所需的所有字段。
+#### 3.5 Repository 实现
 
-**测试验证**:
-```bash
-# 运行单元测试
-npm test -- src/test/unit/core/domain/chat/entity/ChatStream.spec.ts
-npm test -- src/test/unit/core/domain/chat/value-object/ThreadId.spec.ts
+**ChatStreamRepositoryAdapter** (使用 Prisma，直接实现你的 Python 逻辑):
+```typescript
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '@infrastructure/adapter/persistence/PrismaService';
+import { ChatStream } from '@core/domain/chat/entity/ChatStream';
+import { ChatStreamRepositoryPort } from '@core/domain/chat/port/persistence/ChatStreamRepositoryPort';
 
-# 验证域模型创建
-npm run build
+@Injectable()
+export class ChatStreamRepositoryAdapter implements ChatStreamRepositoryPort {
+  
+  constructor(private readonly prismaService: PrismaService) {}
+
+  public async save(stream: ChatStream): Promise<ChatStream> {
+    const client = this.prismaService.getClient();
+    
+    // 检查是否存在 (对应 Python: cursor.execute("SELECT id FROM chat_streams WHERE thread_id = %s"))
+    const existing = await client.chatStream.findUnique({
+      where: { threadId: stream.threadId }
+    });
+
+    if (existing) {
+      // 更新已存在的记录 (对应 Python: UPDATE chat_streams SET messages = %s, ts = %s)
+      const updated = await client.chatStream.update({
+        where: { threadId: stream.threadId },
+        data: {
+          messages: stream.messages,
+          ts: new Date()
+        }
+      });
+      
+      return ChatStream.new({
+        id: updated.id,
+        threadId: updated.threadId,
+        messages: updated.messages as any[],
+        ts: updated.ts
+      });
+    } else {
+      // 创建新记录 (对应 Python: INSERT INTO chat_streams)
+      const created = await client.chatStream.create({
+        data: {
+          threadId: stream.threadId,
+          messages: stream.messages,
+          ts: new Date()
+        }
+      });
+      
+      return ChatStream.new({
+        id: created.id,
+        threadId: created.threadId,
+        messages: created.messages as any[],
+        ts: created.ts
+      });
+    }
+  }
+
+  public async findByThreadId(threadId: string): Promise<ChatStream | null> {
+    const client = this.prismaService.getClient();
+    const found = await client.chatStream.findUnique({
+      where: { threadId }
+    });
+
+    if (!found) return null;
+
+    return ChatStream.new({
+      id: found.id,
+      threadId: found.threadId,
+      messages: found.messages as any[],
+      ts: found.ts
+    });
+  }
+}
 ```
 
----
+#### 3.6 单一 API 端点实现
 
-### **阶段 4: LangChain 基础集成**
-**目标**: 集成 LangChain，实现基本的 LLM 调用和流式输出
-**测试方式**: 测试基本的 AI 对话功能，验证流式响应
-**预计时间**: 1.5天
-
-#### 4.1 LLM 适配器实现
-创建 `@infrastructure/adapter/llm/LangChainAdapter.ts`:
+**ChatController.ts** 中添加 POST `/api/chat/streams` 端点:
 ```typescript
-import { ChatOpenAI } from '@langchain/openai';
-import { ChatAnthropic } from '@langchain/anthropic';
-import { BaseMessage, HumanMessage, AIMessage, SystemMessage } from '@langchain/core/messages';
+@Post('streams')
+@HttpAuth(UserRole.AUTHOR, UserRole.ADMIN, UserRole.GUEST) 
+@HttpCode(HttpStatus.OK)
+@ApiBearerAuth()
+@ApiBody({
+  schema: {
+    type: 'object',
+    properties: {
+      threadId: { type: 'string' },
+      messages: { type: 'array' }
+    },
+    required: ['threadId', 'messages']
+  }
+})
+@ApiResponse({ 
+  status: HttpStatus.OK, 
+  description: 'Chat stream saved successfully',
+  schema: {
+    properties: {
+      success: { type: 'boolean' },
+      id: { type: 'string' },
+      threadId: { type: 'string' },
+      timestamp: { type: 'string' }
+    }
+  }
+})
+public async saveChatStream(
+  @HttpUser() user: HttpUserPayload,
+  @Body() body: { threadId: string; messages: any[] }
+): Promise<{ success: boolean; id: string; threadId: string; timestamp: string }> {
+  
+  try {
+    const chatStream = await ChatStream.new({
+      threadId: body.threadId,
+      messages: body.messages
+    });
+
+    const saved = await this.chatStreamRepository.save(chatStream);
+
+    return {
+      success: true,
+      id: saved.getId(),
+      threadId: saved.threadId,
+      timestamp: saved.ts.toISOString()
+    };
+  } catch (error) {
+    return {
+      success: false,
+      id: '',
+      threadId: body.threadId,
+      timestamp: new Date().toISOString()
+    };
+  }
+}
+```
+
+#### 3.7 测试验证
+
+```bash
+# 创建新聊天流
+curl -X POST http://localhost:3005/api/chat/streams \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"threadId":"test-thread-1","messages":[{"role":"user","content":"Hello"}]}'
+
+# 更新已存在的聊天流  
+curl -X POST http://localhost:3005/api/chat/streams \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"threadId":"test-thread-1","messages":[{"role":"user","content":"Hello"},{"role":"assistant","content":"Hi!"}]}'
+
+# 预期输出：
+# {"success":true,"id":"cuid...","threadId":"test-thread-1","timestamp":"2024-..."}
+```
+
+
 import { LLMConfig } from '@infrastructure/config/LLMConfig';
 
 export interface LLMProvider {
@@ -858,929 +844,3 @@ export class TypeOrmChatStreamRepositoryAdapter implements ChatStreamRepositoryP
   }
 }
 ```
-
-#### 5.2 TypeORM ChatStream 实体定义
-创建 `src/infrastructure/adapter/persistence/typeorm/entity/chat/TypeOrmChatStream.ts`:
-```typescript
-import { Column, Entity, PrimaryGeneratedColumn, Index } from 'typeorm';
-
-@Entity('chat_streams')
-export class TypeOrmChatStream {
-  @PrimaryGeneratedColumn('uuid')
-  public id: string;
-
-  @Column({ name: 'thread_id', type: 'varchar', length: 255, unique: true })
-  @Index()
-  public threadId: string;
-
-  @Column({ type: 'jsonb' })
-  public messages: any[];
-
-  @Column({ name: 'ts', type: 'timestamp with time zone', default: () => 'NOW()' })
-  @Index()
-  public ts: Date;
-}
-```
-
-#### 5.3 Mapper 实现
-创建 `src/infrastructure/adapter/persistence/typeorm/entity/chat/mapper/TypeOrmChatStreamMapper.ts`:
-```typescript
-import { ChatStream } from '@core/domain/chat/entity/ChatStream';
-import { ChatMessage } from '@core/domain/chat/entity/ChatMessage';
-import { ThreadId } from '@core/domain/chat/value-object/ThreadId';
-import { TypeOrmChatStream } from '../TypeOrmChatStream';
-
-export class TypeOrmChatStreamMapper {
-  
-  public static toTypeOrmEntity(stream: ChatStream): TypeOrmChatStream {
-    const typeOrmStream = new TypeOrmChatStream();
-    
-    if (stream.getId()) {
-      typeOrmStream.id = stream.getId();
-    }
-    
-    typeOrmStream.threadId = stream.threadId.value;
-    typeOrmStream.messages = stream.serializeMessages();
-    typeOrmStream.ts = stream.timestamp;
-    
-    return typeOrmStream;
-  }
-
-  public static toDomainEntity(typeOrmStream: TypeOrmChatStream): ChatStream {
-    const messages = ChatStream.deserializeMessages(typeOrmStream.messages);
-    
-    return new ChatStream({
-      id: typeOrmStream.id,
-      threadId: typeOrmStream.threadId,
-      messages,
-      timestamp: typeOrmStream.ts,
-    });
-  }
-}
-
-#### 5.4 Use Case 服务实现
-基于新的 ChatStream 架构创建用例服务：
-
-**GetChatStreamService** (`src/core/service/chat/usecase/GetChatStreamService.ts`):
-```typescript
-@Injectable()
-export class GetChatStreamService implements GetChatStreamUseCase {
-  constructor(
-    @Inject(ChatDITokens.ChatStreamRepository)
-    private readonly chatStreamRepository: ChatStreamRepositoryPort,
-  ) {}
-
-  public async execute(port: GetChatStreamPort): Promise<ChatStreamUseCaseDto> {
-    const threadId = ThreadId.new({ value: port.threadId });
-    const stream = await this.chatStreamRepository.findByThreadId(threadId);
-    
-    if (!stream) {
-      throw new Error(`Chat stream not found: ${port.threadId}`);
-    }
-
-    return ChatStreamUseCaseDto.new({
-      id: stream.getId(),
-      threadId: stream.threadId.value,
-      messages: stream.messages.map(msg => ChatMessageUseCaseDto.fromEntity(msg)),
-      messageCount: stream.messageCount,
-      timestamp: stream.timestamp,
-    });
-  }
-}
-
-interface GetChatStreamPort {
-  threadId: string;
-  executorId: string; // for authorization
-}
-```
-
-**StreamChatService** (更新版本适配 ChatStream):
-```typescript
-@Injectable()
-export class StreamChatService implements StreamChatUseCase {
-  
-  constructor(
-    @Inject(ChatDITokens.ChatStreamRepository)
-    private readonly chatStreamRepository: ChatStreamRepositoryPort,
-  ) {}
-
-  public async execute(port: StreamChatPort): Promise<StreamChatResponse> {
-    // 1. 获取或创建聊天流
-    let stream: ChatStream;
-    let threadId: ThreadId;
-    
-    if (port.threadId) {
-      threadId = ThreadId.new({ value: port.threadId });
-      stream = await this.chatStreamRepository.findByThreadId(threadId);
-      if (!stream) {
-        throw new Error(`Chat stream not found: ${port.threadId}`);
-      }
-    } else {
-      // 生成新的 thread ID
-      threadId = ThreadId.generate();
-      stream = await ChatStream.new({
-        threadId: threadId.value,
-        messages: [],
-      });
-    }
-
-    // 2. 创建用户消息
-    const userMessage = ChatMessage.new({
-      role: MessageRole.USER,
-      content: port.message,
-      timestamp: new Date(),
-      metadata: { executorId: port.executorId }
-    });
-
-    // 3. 添加用户消息到流中
-    stream.addMessage(userMessage);
-
-    // 4. 创建 LLM 适配器
-    const llmAdapter = new LangChainAdapter(port.provider, port.model);
-    
-    // 5. 转换历史消息为 LangChain 格式
-    const langChainMessages = stream.messages.map(msg => 
-      LangChainAdapter.convertToLangChainMessage(msg.role, msg.content)
-    );
-
-    // 6. 生成 AI 响应流
-    const aiMessageId = crypto.randomUUID();
-    
-    return {
-      threadId: threadId.value,
-      messageId: aiMessageId,
-      content: this.wrapStreamWithPersistence(
-        llmAdapter.streamCompletion(langChainMessages),
-        stream,
-        userMessage
-      ),
-    };
-  }
-
-  private async* wrapStreamWithPersistence(
-    aiStream: AsyncIterableIterator<string>,
-    chatStream: ChatStream,
-    userMessage: ChatMessage
-  ): AsyncIterableIterator<string> {
-    let aiContent = '';
-    let isFirstChunk = true;
-
-    try {
-      for await (const chunk of aiStream) {
-        aiContent += chunk;
-        
-        // 第一次保存时包含用户消息
-        if (isFirstChunk) {
-          await this.chatStreamRepository.save(chatStream);
-          isFirstChunk = false;
-        }
-
-        yield chunk;
-      }
-
-      // 流结束后添加AI消息并保存
-      const aiMessage = ChatMessage.new({
-        role: MessageRole.ASSISTANT,
-        content: aiContent,
-        timestamp: new Date(),
-      });
-
-      chatStream.addMessage(aiMessage);
-      await this.chatStreamRepository.save(chatStream);
-
-    } catch (error) {
-      // 错误处理
-      if (aiContent) {
-        const errorMessage = ChatMessage.new({
-          role: MessageRole.ASSISTANT,
-          content: aiContent + '\n[Error occurred during generation]',
-          timestamp: new Date(),
-          metadata: { error: error.message }
-        });
-        chatStream.addMessage(errorMessage);
-        await this.chatStreamRepository.save(chatStream);
-      }
-      throw error;
-    }
-  }
-}
-```
-
-#### 5.5 REST API 端点更新
-更新 `ChatController.ts` 以支持新的 ChatStream 架构:
-```typescript
-// 更新现有的 stream 端点支持 threadId
-@Post('stream')
-@HttpAuth(UserRole.AUTHOR, UserRole.ADMIN, UserRole.GUEST)
-@HttpCode(HttpStatus.OK)
-@ApiBearerAuth()
-@ApiBody({ 
-  schema: {
-    type: 'object',
-    properties: {
-      message: { type: 'string' },
-      threadId: { type: 'string', required: false },
-      provider: { type: 'string', required: false },
-      model: { type: 'string', required: false }
-    }
-  }
-})
-@ApiResponse({status: HttpStatus.OK, description: 'Server-Sent Events stream'})
-public async streamChat(
-  @HttpUser() user: HttpUserPayload,
-  @Body() body: StreamChatRequestBody,
-  @Res() response: Response
-): Promise<void> {
-  // SSE 响应头设置
-  response.writeHead(200, {
-    'Content-Type': 'text/event-stream',
-    'Cache-Control': 'no-cache',
-    'Connection': 'keep-alive',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Cache-Control'
-  });
-
-  try {
-    const adapter = await StreamChatAdapter.new({
-      executorId: user.id,
-      message: body.message,
-      threadId: body.threadId, // 可选的 threadId
-      provider: body.provider,
-      model: body.model,
-    });
-
-    const streamResponse = await this.streamChatUseCase.execute(adapter);
-    
-    // 发送开始事件
-    response.write(SSEAdapter.formatSSEEvent('stream_start', {
-      threadId: streamResponse.threadId,
-      messageId: streamResponse.messageId,
-    }));
-
-    // 流式输出AI响应
-    for await (const chunk of streamResponse.content) {
-      response.write(SSEAdapter.formatSSEChunk(chunk));
-    }
-
-    // 发送完成事件
-    response.write(SSEAdapter.formatSSEComplete());
-
-  } catch (error) {
-    response.write(SSEAdapter.formatSSEError(error.message));
-  } finally {
-    response.end();
-  }
-}
-
-// 新增获取聊天流历史的端点
-@Get('thread/:threadId')
-@HttpAuth(UserRole.AUTHOR, UserRole.ADMIN, UserRole.GUEST)
-@HttpCode(HttpStatus.OK)
-@ApiBearerAuth()
-@ApiResponse({ status: HttpStatus.OK, type: Object })
-public async getChatStreamHistory(
-  @HttpUser() user: HttpUserPayload,
-  @Param('threadId') threadId: string,
-): Promise<CoreApiResponse<ChatStreamUseCaseDto>> {
-  const adapter = await GetChatStreamAdapter.new({
-    executorId: user.id,
-    threadId,
-  });
-
-  const stream = await this.getChatStreamUseCase.execute(adapter);
-  return CoreApiResponse.success(stream);
-}
-
-// 获取最近的聊天流列表
-@Get('recent')
-@HttpAuth(UserRole.AUTHOR, UserRole.ADMIN)
-@HttpCode(HttpStatus.OK)
-@ApiBearerAuth()
-@ApiResponse({ status: HttpStatus.OK, type: Array })
-public async getRecentChatStreams(
-  @HttpUser() user: HttpUserPayload,
-  @Query() query: { limit?: number }
-): Promise<CoreApiResponse<ChatStreamUseCaseDto[]>> {
-  // 注意：这里可以根据需要添加用户过滤逻辑
-  const streams = await this.chatStreamRepository.findRecentStreams(
-    query.limit || 20
-  );
-
-  const dtos = streams.map(stream => ChatStreamUseCaseDto.new({
-    id: stream.getId(),
-    threadId: stream.threadId.value,
-    messages: stream.messages.map(msg => ChatMessageUseCaseDto.fromEntity(msg)),
-    messageCount: stream.messageCount,
-    timestamp: stream.timestamp,
-  }));
-
-  return CoreApiResponse.success(dtos);
-}
-
-interface StreamChatRequestBody {
-  message: string;
-  threadId?: string;
-  provider?: string;
-  model?: string;
-}
-```
-
-**测试验证**:
-```bash
-# 测试新聊天流创建（不提供threadId会自动生成新的）
-curl -N -H "Accept: text/event-stream" -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-  -X POST http://localhost:3005/api/chat/stream \
-  -H "Content-Type: application/json" \
-  -d '{"message":"Hello, how are you?"}'
-
-# 测试继续已有聊天流（提供threadId继续对话）
-curl -N -H "Accept: text/event-stream" -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-  -X POST http://localhost:3005/api/chat/stream \
-  -H "Content-Type: application/json" \
-  -d '{"message":"Tell me more", "threadId":"thread_abc123_xyz789"}'
-
-# 测试获取聊天流历史
-curl -X GET "http://localhost:3005/api/chat/thread/thread_abc123_xyz789" \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN"
-
-# 测试获取最近的聊天流列表  
-curl -X GET "http://localhost:3005/api/chat/recent?limit=10" \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN"
-```
-
----
-
-### **阶段 6: 工具调用支持（Function Calling）**
-**目标**: 实现 LLM 工具调用功能
-**测试方式**: 测试简单工具调用（如获取天气、计算器等）
-**预计时间**: 2天
-
-#### 6.1 工具系统基础架构
-创建工具系统目录结构：
-```
-src/core/domain/chat/tool/
-├── interface/
-│   └── ChatTool.ts                  # 工具接口定义
-├── registry/
-│   └── ToolRegistry.ts              # 工具注册中心
-├── builtin/
-│   ├── CalculatorTool.ts            # 内置计算器工具
-│   ├── WeatherTool.ts               # 内置天气查询工具
-│   └── SearchTool.ts                # 内置搜索工具
-└── types/
-    ├── ToolCall.ts                  # 工具调用类型
-    ├── ToolResult.ts                # 工具结果类型
-    └── ToolDefinition.ts            # 工具定义类型
-```
-
-**ChatTool 接口** (`src/core/domain/chat/tool/interface/ChatTool.ts`):
-```typescript
-export interface ToolParameter {
-  name: string;
-  type: 'string' | 'number' | 'boolean' | 'object' | 'array';
-  description: string;
-  required: boolean;
-  enum?: string[];
-}
-
-export interface ToolDefinition {
-  name: string;
-  description: string;
-  parameters: ToolParameter[];
-}
-
-export interface ToolCall {
-  id: string;
-  name: string;
-  parameters: Record<string, any>;
-  timestamp: Date;
-}
-
-export interface ToolResult {
-  toolCallId: string;
-  success: boolean;
-  result: any;
-  error?: string;
-  executionTime: number;
-  timestamp: Date;
-}
-
-export abstract class ChatTool {
-  abstract getName(): string;
-  abstract getDescription(): string;
-  abstract getDefinition(): ToolDefinition;
-  abstract execute(parameters: Record<string, any>): Promise<ToolResult>;
-
-  protected validateParameters(parameters: Record<string, any>): void {
-    const definition = this.getDefinition();
-    
-    // 验证必需参数
-    for (const param of definition.parameters) {
-      if (param.required && !(param.name in parameters)) {
-        throw new Error(`Missing required parameter: ${param.name}`);
-      }
-    }
-
-    // 验证参数类型
-    for (const [key, value] of Object.entries(parameters)) {
-      const param = definition.parameters.find(p => p.name === key);
-      if (param && !this.isValidType(value, param.type)) {
-        throw new Error(`Invalid type for parameter ${key}: expected ${param.type}`);
-      }
-    }
-  }
-
-  private isValidType(value: any, expectedType: string): boolean {
-    switch (expectedType) {
-      case 'string': return typeof value === 'string';
-      case 'number': return typeof value === 'number';
-      case 'boolean': return typeof value === 'boolean';
-      case 'object': return typeof value === 'object' && value !== null;
-      case 'array': return Array.isArray(value);
-      default: return true;
-    }
-  }
-}
-```
-
-#### 6.2 基础工具实现
-
-**计算器工具** (`src/core/domain/chat/tool/builtin/CalculatorTool.ts`):
-```typescript
-import { ChatTool, ToolDefinition, ToolResult } from '../interface/ChatTool';
-import { Injectable } from '@nestjs/common';
-
-@Injectable()
-export class CalculatorTool extends ChatTool {
-  public getName(): string {
-    return 'calculator';
-  }
-
-  public getDescription(): string {
-    return 'Perform mathematical calculations. Supports basic arithmetic operations.';
-  }
-
-  public getDefinition(): ToolDefinition {
-    return {
-      name: this.getName(),
-      description: this.getDescription(),
-      parameters: [
-        {
-          name: 'expression',
-          type: 'string',
-          description: 'Mathematical expression to evaluate (e.g., "2 + 2", "sin(3.14159/2)")',
-          required: true,
-        }
-      ],
-    };
-  }
-
-  public async execute(parameters: Record<string, any>): Promise<ToolResult> {
-    const startTime = Date.now();
-    
-    try {
-      this.validateParameters(parameters);
-      
-      const expression = parameters.expression;
-      const result = this.evaluateExpression(expression);
-      
-      return {
-        toolCallId: parameters.toolCallId || 'unknown',
-        success: true,
-        result: {
-          expression,
-          result,
-          type: 'number'
-        },
-        executionTime: Date.now() - startTime,
-        timestamp: new Date(),
-      };
-
-    } catch (error) {
-      return {
-        toolCallId: parameters.toolCallId || 'unknown',
-        success: false,
-        result: null,
-        error: error.message,
-        executionTime: Date.now() - startTime,
-        timestamp: new Date(),
-      };
-    }
-  }
-
-  private evaluateExpression(expression: string): number {
-    // 简单且安全的数学表达式解析
-    // 在生产环境中应该使用更安全的数学解析库
-    const sanitized = expression.replace(/[^0-9+\-*/.() ]/g, '');
-    
-    try {
-      // 使用 Function 构造器而不是 eval 来提高安全性
-      const result = new Function('return ' + sanitized)();
-      
-      if (typeof result !== 'number' || !isFinite(result)) {
-        throw new Error('Result is not a valid number');
-      }
-      
-      return result;
-    } catch (error) {
-      throw new Error(`Invalid mathematical expression: ${expression}`);
-    }
-  }
-}
-```
-
-**天气查询工具** (`src/core/domain/chat/tool/builtin/WeatherTool.ts`):
-```typescript
-import { ChatTool, ToolDefinition, ToolResult } from '../interface/ChatTool';
-import { Injectable } from '@nestjs/common';
-
-@Injectable()
-export class WeatherTool extends ChatTool {
-  // OpenWeatherMap API Key (应该从环境变量获取)
-  private readonly apiKey = process.env.OPENWEATHER_API_KEY;
-
-  public getName(): string {
-    return 'get_weather';
-  }
-
-  public getDescription(): string {
-    return 'Get current weather information for a specific location';
-  }
-
-  public getDefinition(): ToolDefinition {
-    return {
-      name: this.getName(),
-      description: this.getDescription(),
-      parameters: [
-        {
-          name: 'location',
-          type: 'string',
-          description: 'City name or "latitude,longitude" coordinates',
-          required: true,
-        },
-        {
-          name: 'units',
-          type: 'string',
-          description: 'Temperature units',
-          required: false,
-          enum: ['metric', 'imperial', 'kelvin']
-        }
-      ],
-    };
-  }
-
-  public async execute(parameters: Record<string, any>): Promise<ToolResult> {
-    const startTime = Date.now();
-    
-    try {
-      this.validateParameters(parameters);
-      
-      if (!this.apiKey) {
-        throw new Error('Weather API key not configured');
-      }
-
-      const { location, units = 'metric' } = parameters;
-      const weatherData = await this.fetchWeatherData(location, units);
-      
-      return {
-        toolCallId: parameters.toolCallId || 'unknown',
-        success: true,
-        result: {
-          location: weatherData.name,
-          country: weatherData.sys.country,
-          temperature: weatherData.main.temp,
-          feelsLike: weatherData.main.feels_like,
-          humidity: weatherData.main.humidity,
-          description: weatherData.weather[0].description,
-          windSpeed: weatherData.wind?.speed,
-          units: units
-        },
-        executionTime: Date.now() - startTime,
-        timestamp: new Date(),
-      };
-
-    } catch (error) {
-      return {
-        toolCallId: parameters.toolCallId || 'unknown',
-        success: false,
-        result: null,
-        error: error.message,
-        executionTime: Date.now() - startTime,
-        timestamp: new Date(),
-      };
-    }
-  }
-
-  private async fetchWeatherData(location: string, units: string): Promise<any> {
-    const url = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(location)}&appid=${this.apiKey}&units=${units}`;
-    
-    const response = await fetch(url);
-    
-    if (!response.ok) {
-      throw new Error(`Weather API error: ${response.status} ${response.statusText}`);
-    }
-    
-    return response.json();
-  }
-}
-```
-
-#### 6.3 工具注册中心
-创建 `src/core/domain/chat/tool/registry/ToolRegistry.ts`:
-```typescript
-import { Injectable } from '@nestjs/common';
-import { ChatTool, ToolCall, ToolResult } from '../interface/ChatTool';
-
-@Injectable()
-export class ToolRegistry {
-  private tools: Map<string, ChatTool> = new Map();
-
-  public registerTool(tool: ChatTool): void {
-    this.tools.set(tool.getName(), tool);
-  }
-
-  public getTool(name: string): ChatTool | undefined {
-    return this.tools.get(name);
-  }
-
-  public getAllTools(): ChatTool[] {
-    return Array.from(this.tools.values());
-  }
-
-  public getToolDefinitions(): any[] {
-    return this.getAllTools().map(tool => tool.getDefinition());
-  }
-
-  public async executeTool(toolCall: ToolCall): Promise<ToolResult> {
-    const tool = this.getTool(toolCall.name);
-    
-    if (!tool) {
-      return {
-        toolCallId: toolCall.id,
-        success: false,
-        result: null,
-        error: `Unknown tool: ${toolCall.name}`,
-        executionTime: 0,
-        timestamp: new Date(),
-      };
-    }
-
-    return tool.execute({ 
-      ...toolCall.parameters, 
-      toolCallId: toolCall.id 
-    });
-  }
-}
-```
-
-#### 6.4 LangChain 工具调用集成
-更新 `LangChainAdapter.ts` 以支持工具调用：
-```typescript
-import { ChatOpenAI } from '@langchain/openai';
-import { DynamicTool } from '@langchain/core/tools';
-import { AgentExecutor, createOpenAIFunctionsAgent } from 'langchain/agents';
-import { ChatPromptTemplate } from '@langchain/core/prompts';
-import { ToolRegistry } from '@core/domain/chat/tool/registry/ToolRegistry';
-
-export class LangChainAdapter implements LLMProvider {
-  // ... 现有代码
-
-  constructor(
-    provider?: string, 
-    model?: string,
-    private toolRegistry?: ToolRegistry
-  ) {
-    // ... 现有构造器代码
-  }
-
-  public async* streamCompletionWithTools(
-    messages: BaseMessage[],
-    enableTools: boolean = true
-  ): AsyncIterableIterator<{ type: 'message' | 'tool_call' | 'tool_result', content: any }> {
-    
-    if (!enableTools || !this.toolRegistry) {
-      // 没有工具时，使用原有的流式处理
-      for await (const chunk of this.streamCompletion(messages)) {
-        yield { type: 'message', content: chunk };
-      }
-      return;
-    }
-
-    // 转换工具定义为 LangChain 格式
-    const tools = this.createLangChainTools();
-    
-    // 创建带工具的代理
-    const prompt = ChatPromptTemplate.fromMessages([
-      ["system", "You are a helpful assistant with access to tools. Use tools when appropriate to help answer questions."],
-      ["placeholder", "{chat_history}"],
-      ["human", "{input}"],
-      ["placeholder", "{agent_scratchpad}"],
-    ]);
-
-    const agent = await createOpenAIFunctionsAgent({
-      llm: this.llm as ChatOpenAI,
-      tools,
-      prompt,
-    });
-
-    const agentExecutor = new AgentExecutor({
-      agent,
-      tools,
-      verbose: true,
-    });
-
-    // 执行代理并流式返回结果
-    const lastMessage = messages[messages.length - 1];
-    const result = await agentExecutor.invoke({
-      input: lastMessage.content,
-      chat_history: messages.slice(0, -1),
-    });
-
-    // 解析结果并生成相应的流式事件
-    if (result.intermediateSteps) {
-      for (const step of result.intermediateSteps) {
-        yield {
-          type: 'tool_call',
-          content: {
-            name: step.action.tool,
-            parameters: step.action.toolInput,
-            id: Date.now().toString(),
-          }
-        };
-        
-        yield {
-          type: 'tool_result',
-          content: {
-            toolCallId: Date.now().toString(),
-            result: step.observation,
-            success: true,
-          }
-        };
-      }
-    }
-
-    // 最终的文本响应
-    yield { type: 'message', content: result.output };
-  }
-
-  private createLangChainTools(): DynamicTool[] {
-    const chatTools = this.toolRegistry.getAllTools();
-    
-    return chatTools.map(chatTool => {
-      const definition = chatTool.getDefinition();
-      
-      return new DynamicTool({
-        name: definition.name,
-        description: definition.description,
-        func: async (input: string) => {
-          try {
-            const parameters = JSON.parse(input);
-            const result = await chatTool.execute(parameters);
-            return result.success ? JSON.stringify(result.result) : result.error;
-          } catch (error) {
-            return `Error: ${error.message}`;
-          }
-        },
-      });
-    });
-  }
-}
-```
-
-#### 6.5 工具调用流式处理
-更新 `StreamChatService.ts` 以支持工具调用：
-```typescript
-@Injectable()
-export class StreamChatService implements StreamChatUseCase {
-  
-  constructor(
-    @Inject(ChatDITokens.ChatRepository)
-    private readonly chatRepository: ChatRepositoryPort,
-    
-    @Inject(ChatDITokens.ToolRegistry)
-    private readonly toolRegistry: ToolRegistry,
-  ) {}
-
-  public async* execute(port: StreamChatPort): Promise<AsyncIterableIterator<StreamChatEvent>> {
-    // ... 现有代码 ...
-
-    // 创建支持工具的LLM适配器
-    const llmAdapter = new LangChainAdapter(
-      port.provider, 
-      port.model, 
-      this.toolRegistry
-    );
-
-    // 流式处理工具调用和消息
-    for await (const event of llmAdapter.streamCompletionWithTools(langChainMessages, port.enableTools)) {
-      switch (event.type) {
-        case 'message':
-          yield {
-            type: 'message_chunk',
-            data: {
-              content: event.content,
-              timestamp: new Date().toISOString(),
-            }
-          };
-          break;
-          
-        case 'tool_call':
-          yield {
-            type: 'tool_calls',
-            data: {
-              toolCalls: [event.content],
-              timestamp: new Date().toISOString(),
-            }
-          };
-          break;
-          
-        case 'tool_result':
-          yield {
-            type: 'tool_call_result',
-            data: {
-              ...event.content,
-              timestamp: new Date().toISOString(),
-            }
-          };
-          break;
-      }
-    }
-  }
-}
-
-export interface StreamChatEvent {
-  type: 'message_chunk' | 'tool_calls' | 'tool_call_result' | 'error' | 'done';
-  data: any;
-}
-```
-
-**测试验证**:
-```bash
-# 测试计算器工具调用
-curl -N -H "Accept: text/event-stream" -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-  -X POST http://localhost:3005/api/chat/stream \
-  -H "Content-Type: application/json" \
-  -d '{
-    "message": "What is 15 * 23 + 47?",
-    "enableTools": true
-  }'
-
-# 测试天气查询工具
-curl -N -H "Accept: text/event-stream" -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-  -X POST http://localhost:3005/api/chat/stream \
-  -H "Content-Type: application/json" \
-  -d '{
-    "message": "What is the weather like in Tokyo?",
-    "enableTools": true
-  }'
-
-# 预期输出包含工具调用和结果事件
-```
-
----
-
-## 后续阶段概览（阶段 7-12）
-
-### **阶段 7: 高级 SSE 事件处理** (1天)
-- 完善所有 SSE 事件类型的处理
-- 添加元数据和上下文传递
-- 优化事件序列化和错误处理
-
-### **阶段 8: 多轮对话和上下文管理** (1.5天)
-- 实现智能上下文窗口管理
-- 添加对话历史压缩和相关性评分
-- 优化长对话的性能
-
-### **阶段 9: 文件上传和多模态支持** (2天)
-- 扩展现有 Media 功能支持聊天
-- 集成多模态 LLM（GPT-4V, Claude Vision）
-- 实现文件分析和处理
-
-### **阶段 10: 高级配置和自定义** (1天)
-- 添加模型参数配置系统
-- 实现用户个性化设置
-- 创建对话模板和预设
-
-### **阶段 11: 错误处理和监控** (1天)
-- 完善错误处理机制
-- 添加详细日志和监控
-- 实现故障恢复和重试机制
-
-### **阶段 12: 性能优化和生产准备** (1天)
-- 系统性能调优
-- 压力测试和稳定性验证
-- 部署配置和文档完善
-
----
-
-## 总结
-
-本计划详细分解了 `/api/chat/stream` 接口的完整实施过程，遵循了当前项目的 Clean Architecture 原则，包含：
-
-✅ **12个递进式开发阶段**，每个阶段都有明确的目标和测试验证方法
-✅ **完整的技术架构设计**，充分利用现有的基础设施
-✅ **详细的代码示例**，展示关键实现细节
-✅ **全面的测试策略**，确保每个功能的正确性
-✅ **生产级别的质量标准**，包含错误处理、监控和优化
-
-预计总开发时间：**2-3周**，可以并行开发某些独立模块以加速进度。每个阶段完成后都能独立测试和验证，确保项目的稳定推进。

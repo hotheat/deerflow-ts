@@ -8,6 +8,7 @@ import { MediaRepositoryPort } from '@core/domain/media/port/persistence/MediaRe
 import { RemoveMediaPort } from '@core/domain/media/port/usecase/RemoveMediaPort';
 import { RemoveMediaUseCase } from '@core/domain/media/usecase/RemoveMediaUseCase';
 import { FileMetadata } from '@core/domain/media/value-object/FileMetadata';
+import { PostDITokens } from '@core/domain/post/di/PostDITokens';
 import { PostRepositoryPort } from '@core/domain/post/port/persistence/PostRepositoryPort';
 import { RemoveMediaService } from '@core/service/media/usecase/RemoveMediaService';
 import { Test, TestingModule } from '@nestjs/testing';
@@ -16,8 +17,7 @@ import { v4 } from 'uuid';
 describe('RemoveMediaService', () => {
   let removeMediaService: RemoveMediaUseCase;
   let mediaRepository: MediaRepositoryPort;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  let _postRepository: PostRepositoryPort;
+  let postRepository: PostRepositoryPort;
   
   beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -25,17 +25,17 @@ describe('RemoveMediaService', () => {
         {
           provide: MediaDITokens.RemoveMediaUseCase,
           useFactory: (mediaRepository, postRepository) => new RemoveMediaService(mediaRepository, postRepository),
-          inject: ['MediaRepository', 'PostRepository']
+          inject: [MediaDITokens.MediaRepository, PostDITokens.PostRepository]
         },
         {
-          provide: 'MediaRepository',
+          provide: MediaDITokens.MediaRepository,
           useValue: {
             findMedia: jest.fn(),
             removeMedia: jest.fn()
           }
         },
         {
-          provide: 'PostRepository',
+          provide: PostDITokens.PostRepository,
           useValue: {
             updatePosts: jest.fn()
           }
@@ -44,21 +44,21 @@ describe('RemoveMediaService', () => {
     }).compile();
   
     removeMediaService = module.get<RemoveMediaUseCase>(MediaDITokens.RemoveMediaUseCase);
-    mediaRepository = module.get<MediaRepositoryPort>('MediaRepository');
-    _postRepository = module.get<PostRepositoryPort>('PostRepository');
+    mediaRepository = module.get<MediaRepositoryPort>(MediaDITokens.MediaRepository);
+    postRepository = module.get<PostRepositoryPort>(PostDITokens.PostRepository);
   });
   
   describe('execute', () => {
   
-    test('Expect it removes media and sends event about it', async () => {
+    test('Expect it removes media and updates related posts', async () => {
       const mockMedia: Media = await createMedia();
       
       jest.spyOn(mediaRepository, 'findMedia').mockImplementation(async () => mockMedia);
       jest.spyOn(mediaRepository, 'removeMedia').mockImplementation(async () => undefined);
-      jest.spyOn(eventBus, 'sendEvent').mockImplementation(async () => undefined);
+      jest.spyOn(postRepository, 'updatePosts').mockImplementation(async () => undefined);
       
       jest.spyOn(mediaRepository, 'removeMedia').mockClear();
-      jest.spyOn(eventBus, 'sendEvent').mockClear();
+      jest.spyOn(postRepository, 'updatePosts').mockClear();
   
       const removeMediaPort: RemoveMediaPort = {
         executorId: mockMedia.getOwnerId(),
@@ -68,10 +68,11 @@ describe('RemoveMediaService', () => {
       await removeMediaService.execute(removeMediaPort);
       
       const removedMedia: Media = jest.spyOn(mediaRepository, 'removeMedia').mock.calls[0][0];
-      const mediaRemovedEvent: MediaRemovedEvent = jest.spyOn(eventBus, 'sendEvent').mock.calls[0][0] as MediaRemovedEvent;
+      const updatePostsCall = jest.spyOn(postRepository, 'updatePosts').mock.calls[0];
       
       expect(removedMedia).toEqual(mockMedia);
-      expect(mediaRemovedEvent).toEqual(MediaRemovedEvent.new(mockMedia.getId(), mockMedia.getOwnerId(), mockMedia.getType()));
+      expect(updatePostsCall[0]).toEqual({imageId: null});
+      expect(updatePostsCall[1]).toEqual({imageId: mockMedia.getId()});
       
     });
   

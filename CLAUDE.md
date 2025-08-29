@@ -18,8 +18,10 @@ This is a TypeScript Clean Architecture implementation called "IPoster" - a fict
 - **Lint Fix**: `pnpm run lint:fix` - Auto-fix linting issues
 
 ### Testing
-- **Run Tests**: `pnpm run test` - Jest tests with custom configuration
-- **Test Coverage**: `pnpm run test:cov` - Jest with coverage reports
+- **Run Unit Tests**: `pnpm run test` - Jest unit tests only (test/unit directory)
+- **Unit Test Coverage**: `pnpm run test:cov` - Unit tests with coverage reports
+- **Run E2E Tests**: `pnpm run test:e2e` - End-to-end tests only (test/e2e directory)
+- **Run All Tests**: `pnpm run test:all` - Both unit and E2E tests
 - **Test Environment**: `docker-compose -f docker-compose.test.yaml up -d` - Start test dependencies (PostgreSQL, Minio)
 - **Run Single Test**: `pnpm run test -- --testNamePattern="TestName"` - Run specific test by name
 - **Run Test File**: `pnpm run test path/to/test.spec.ts` - Run specific test file
@@ -46,7 +48,10 @@ Available via `make <command>`:
 - **make start-local** - Start with local environment
 - **make dev** - Start development server
 - **make lint** - Run linting
-- **make test** - Run tests
+- **make test** - Run unit tests only
+- **make test-cov** - Run unit tests with coverage
+- **make test-e2e** - Run E2E tests only
+- **make test-all** - Run all tests (unit + E2E)
 - **make clean** - Clean build artifacts and node_modules
 
 ## Architecture Overview

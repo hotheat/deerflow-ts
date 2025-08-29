@@ -96,6 +96,9 @@ importers:
       '@types/jest':
         specifier: 29.4.0
         version: 29.4.0
+      '@types/jsonwebtoken':
+        specifier: ^9.0.10
+        version: 9.0.10
       '@types/minio':
         specifier: 7.0.15
         version: 7.0.15

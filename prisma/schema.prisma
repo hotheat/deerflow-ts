@@ -72,3 +72,12 @@ model Media {
 
   @@map("media")
 }
+
+model ChatStream {
+  id       String   @id @default(cuid())
+  threadId String   @unique @map("thread_id")
+  messages Json     @map("messages")
+  ts       DateTime @default(now()) @map("ts")
+
+  @@map("chat_streams")
+}
