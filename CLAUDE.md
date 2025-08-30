@@ -4,7 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a TypeScript Clean Architecture implementation called "IPoster" - a fictional application that allows users to publish posts. The project demonstrates Clean Architecture principles with clear separation between Core (domain/business logic), Infrastructure (external concerns), and Application (HTTP/REST API) layers.
+This is a TypeScript Clean Architecture implementation called "IPoster" - a comprehensive application that allows users to publish posts with media attachments and engage in AI-powered chat conversations. The project demonstrates advanced Clean Architecture principles with clear separation between Core (domain/business logic), Infrastructure (external concerns), and Application (HTTP/REST API) layers.
+
+### Key Features
+- **User Management**: Multi-role user system (Guest, Author, Admin) with JWT authentication
+- **Post Publishing**: Rich post creation with media attachments and status management
+- **Media Management**: File upload and management with Minio object storage
+- **AI Chat Streaming**: Real-time AI chat with LangGraph workflow integration and Server-Sent Events (SSE)
 
 ## Common Commands
 
@@ -69,28 +75,58 @@ Available via `make <command>`:
 ## Architecture Overview
 
 ### Layer Structure
-The application follows a 4-layer Clean Architecture:
+The application follows a 3-layer Clean Architecture:
 
 1. **Core** (`src/core/`) - Domain logic and business rules
-   - `common/` - Shared utilities, base classes, exceptions
+   - `common/` - Shared utilities, base classes, exceptions, enums, value objects
+     - `adapter/` - Common adapters (validator)
+     - `api/` - Core API response models
+     - `code/` - Application codes and constants
+     - `di/` - Core dependency injection tokens
+     - `entity/` - Base entity classes (Entity, RemovableEntity)
+     - `enums/` - Domain enumerations (UserEnums, PostEnums, MediaEnums)
+     - `exception/` - Base exception handling
+     - `interface/` - Core interfaces (Interface, TransactionalInterface)
+     - `persistence/` - Common persistence options
+     - `type/` - Common type definitions
+     - `util/` - Utilities (assert, class-validator)
+     - `value-object/` - Base value object class
    - `domain/` - Domain entities, business interfaces, and data contracts for User, Post, Media, Chat
-     - `*/interface/` - Business operation contracts (e.g., CreateMediaInterface)
-     - `*/port/dto/` - Data transfer objects (e.g., CreateMediaDto)
-     - `*/port/persistence/` - Repository and storage interface contracts (e.g., MediaRepositoryPort)
-   - `service/*/service/` - Application services implementing domain interfaces
+     - `*/di/` - Domain-specific dependency injection tokens
+     - `*/entity/` - Rich domain entities with business logic
+       - `*/type/` - Entity payload type definitions
+     - `*/interface/` - Business operation contracts (e.g., CreateMediaInterface, StreamChatInterface)
+     - `*/port/` - Ports for dependency inversion
+       - `*/dto/` - Data transfer objects and interface DTOs
+       - `*/persistence/` - Repository and storage interface contracts
+     - `*/value-object/` - Domain-specific value objects
+       - `*/type/` - Value object payload types
+   - `service/` - Application services implementing domain interfaces
+     - `*/service/` - Service implementations for each domain
+     - `*/usecase/` - Use case implementations (currently organized under services)
 
 2. **Infrastructure** (`src/infrastructure/`) - External concerns and adapters
    - `adapter/` - External system adapters
      - `persistence/` - Database (Prisma) and storage (Minio) adapters
-     - `streaming/` - Server-Sent Events (SSE) adapters
-     - `workflow/` - LangGraph workflow adapters
-     - `validator/` - Data validation adapters (e.g., CreateMediaValidator)
-   - `config/` - Configuration classes for API server, database, file storage, LLM
-   - `transaction/` - Transactional use case wrappers
+       - `media-file/` - File storage adapters (MinioMediaFileStorageAdapter)
+       - `repository/` - Database repository adapters with entity mappers
+         - `mapper/` - Entity-to-database mapping utilities
+     - `streaming/` - Server-Sent Events (SSE) adapters for real-time communication
+     - `validator/` - Domain-specific data validation adapters
+     - `workflow/` - LangGraph workflow adapters for AI chat functionality
+       - `langgraph/` - LangGraph implementation with state management and streaming strategies
+   - `config/` - Configuration classes (ApiServerConfig, DatabaseConfig, FileStorageConfig, LLMConfig)
+   - `transaction/` - Transactional use case wrappers for database operations
 
 3. **Application** (`src/application/`) - HTTP API layer
-   - `api/http-rest/` - REST controllers, authentication, documentation models
-   - `di/` - Dependency injection modules
+   - `api/http-rest/` - REST API implementation
+     - `auth/` - Authentication system (JWT, Local strategies, guards, decorators)
+     - `controller/` - REST controllers for each domain
+       - `documentation/` - OpenAPI/Swagger documentation models
+     - `exception-filter/` - Global exception handling
+     - `interceptor/` - Request/response interceptors (logging)
+   - `di/` - NestJS dependency injection modules for each domain
+   - `ServerApplication.ts` - Main application bootstrap
 
 ### Key Architectural Patterns
 
@@ -130,10 +166,10 @@ export class CreatePostService implements CreatePostInterface {
 - `@test/*` → `test/*`
 
 ### Domain Models
-- **User**: Guest or Author accounts with authentication
-- **Post**: Draft/published posts with optional media attachments
-- **Media**: File uploads managed by Authors
-- **Chat**: AI-powered chat streams with LangGraph workflow integration
+- **User**: Multi-role user system (Guest, Author, Admin) with JWT and local authentication
+- **Post**: Rich post entities with draft/published status, media attachments, and ownership tracking
+- **Media**: Comprehensive file management with metadata, Minio storage, and owner permissions
+- **Chat**: Advanced AI-powered chat streams with LangGraph workflow integration, message persistence, and real-time SSE streaming
 
 ### Domain Directory Structure
 
@@ -239,16 +275,58 @@ if (!user) {
 
 ## Key Implementation Notes
 
-- Uses Prisma ORM with PostgreSQL for persistence
-- Minio for file storage
-- Passport.js for JWT and local authentication
-- NestJS as the HTTP framework
-- Custom build script compiles to `dist/` with production dependencies
-- Module aliases configured in both TypeScript and Jest configurations
-- Transactional use cases use Prisma transactions with custom wrapper
-- LangChain integration for potential AI features
-- Jest testing with sonar reporter and junit output
-- ESLint with TypeScript parser for code quality
+### Technology Stack
+- **Database**: Prisma ORM with PostgreSQL for relational data persistence
+- **File Storage**: Minio object storage for media file management
+- **Authentication**: Passport.js with JWT and local strategy implementations
+- **Web Framework**: NestJS with Express for robust HTTP API layer
+- **AI Integration**: LangChain and LangGraph for AI workflow orchestration
+- **Real-time Communication**: Server-Sent Events (SSE) for chat streaming
+- **Validation**: Class-validator and custom validation adapters
+- **Testing**: Jest with comprehensive unit and E2E test coverage
+
+### Build and Development
+- Custom build script compiles TypeScript to `dist/` with production dependencies
+- Module aliases configured in both TypeScript and Jest configurations (`@core/`, `@infrastructure/`, `@application/`)
+- Nodemon for development hot reload with debugging support
+- ESLint with strict TypeScript rules for code quality enforcement
+- Docker Compose for local development environment (PostgreSQL + Minio)
+
+### Architecture Patterns
+- **Clean Architecture**: Strict separation of concerns with dependency inversion
+- **Ports & Adapters (Hexagonal)**: Interface-driven design with adapters for external systems
+- **Repository Pattern**: Data access abstraction with Prisma adapters
+- **Dependency Injection**: NestJS DI container with domain-specific tokens
+- **Transactional Boundaries**: Prisma transaction wrapper for cross-domain operations
+- **Streaming Architecture**: Async iterators and SSE for real-time AI chat functionality
+
+## AI Chat System Implementation
+
+The project includes a comprehensive AI-powered chat system built with LangGraph and streaming capabilities:
+
+### Chat Architecture
+- **StreamChatInterface**: Core business interface for chat streaming operations
+- **ChatWorkflowAdapterPort**: Port defining LangGraph workflow contracts
+- **LangGraphChatAdapter**: Infrastructure adapter implementing OpenAI chat workflows
+- **SSEAdapter**: Server-Sent Events adapter for real-time streaming
+- **ChatStream Entity**: Domain entity for message persistence with thread management
+
+### Streaming Flow
+1. **Controller Layer**: `ChatController` handles HTTP requests and SSE response setup
+2. **Service Layer**: `StreamChatService` orchestrates chat workflow execution
+3. **Workflow Layer**: `LangGraphChatAdapter` manages LangGraph state transitions
+4. **Streaming Layer**: `SSEAdapter` formats and streams real-time responses
+
+### Key Components
+- **LangGraph Workflow**: State-based AI conversation management with OpenAI integration
+- **Stream Strategies**: Configurable streaming modes (updates, values, debug) with processing strategies
+- **Message Persistence**: ChatStream repository for conversation history storage
+- **Error Handling**: Comprehensive exception handling with structured error responses
+
+### Configuration
+- **LLMConfig**: OpenAI API configuration (model, temperature, tokens, base URL)
+- **Stream Configuration**: Recursion limits, thread IDs, and subgraph support
+- **Authentication**: Role-based access (Guest, Author, Admin) for chat endpoints
 
 ## Build Process Details
 
@@ -259,4 +337,12 @@ The custom build script (`scripts/build.sh`) performs:
 4. **Install**: Production dependencies installed in dist/ directory
 
 This creates a self-contained dist/ folder ready for deployment.
-- memory 尽量不要使用 unknown 进行类型标注
+
+## Development Guidelines
+
+- **Type Safety**: Explicit type annotations required for all variables and properties
+- **No Unknown Types**: Avoid using `unknown` type annotations - prefer specific interfaces
+- **Clean Architecture**: Maintain strict layer boundaries - Core never depends on Infrastructure or Application
+- **Dependency Injection**: Use domain-specific DI tokens rather than direct class references
+- **Error Handling**: Use structured exceptions with proper error codes and context data
+- **Streaming**: Leverage async iterators for real-time data flows and SSE implementations

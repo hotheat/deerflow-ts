@@ -23,17 +23,11 @@ import { PersistenceModule } from '@application/di/PersistenceModule';
       provide: ChatDITokens.StreamChatInterface,
       useClass: StreamChatService,
     },
-    // Legacy provider for backward compatibility
-    {
-      provide: ChatDITokens.ChatWorkflow,
-      useClass: ChatWorkflow,
-    },
     StreamChatService,
   ],
   exports: [
     ChatDITokens.ChatWorkflowAdapterPort, 
     ChatDITokens.StreamChatInterface, 
-    ChatDITokens.ChatWorkflow, 
     StreamChatService
   ],
 })

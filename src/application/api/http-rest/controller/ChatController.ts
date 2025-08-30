@@ -33,9 +33,10 @@ export class ChatController {
     schema: {
       type: 'object',
       properties: {
-        message: {type: 'string', description: 'The message to send'}
+        message: {type: 'string', description: 'The message to send'},
+        threadId: {type: 'string', description: 'Unique thread identifier'}
       },
-      required: ['message']
+      required: ['message', 'threadId']
     }
   })
   @ApiResponse({
@@ -49,7 +50,7 @@ export class ChatController {
   })
   public async streamChat(
     @HttpUser() user: HttpUserPayload,
-    @Body() body: { message: string },
+    @Body() body: { message: string; threadId: string },
     @Res() response: Response
   ): Promise<void> {
     // 设置SSE响应头
@@ -72,11 +73,11 @@ export class ChatController {
         config: {
           streamMode: 'updates',
           subgraphs: true,
+          threadId: body.threadId,
           recursionLimit: 50
         }
       };
 
-      // 获取流式响应使用新架构方法
       const contentStream: AsyncIterableIterator<StreamChatResponseDto> = await this.streamChatService.execute(
         streamChatDto,
       );
