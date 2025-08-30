@@ -27,8 +27,10 @@ This is a TypeScript Clean Architecture implementation called "IPoster" - a fict
 - **Run Test File**: `pnpm run test path/to/test.spec.ts` - Run specific test file
 
 ### Database
-- **Create Migration**: `pnpm run migration:create -- [MigrationName]`
-- **Revert Migration**: `pnpm run migration:revert`
+- **Generate Prisma Client**: `pnpm run db:generate` - Generate Prisma client from schema
+- **Run Migrations**: `pnpm run db:migrate` - Run database migrations in dev
+- **Push Schema**: `pnpm run db:push` - Push schema changes to database
+- **Database Studio**: `pnpm run db:studio` - Open Prisma Studio GUI
 
 ### Library Management
 - **Check Updates**: `pnpm run lib:check` - Show available library updates
@@ -45,13 +47,23 @@ Available via `make <command>`:
 - **make help** - Show all available make commands
 - **make install** - Install dependencies with pnpm
 - **make build** - Build the project
+- **make start** - Start the compiled application
 - **make start-local** - Start with local environment
 - **make dev** - Start development server
 - **make lint** - Run linting
+- **make lint-fix** - Run ESLint with auto-fix
 - **make test** - Run unit tests only
 - **make test-cov** - Run unit tests with coverage
 - **make test-e2e** - Run E2E tests only
 - **make test-all** - Run all tests (unit + E2E)
+- **make migration-create** - Create new database migration (interactive)
+- **make migration-revert** - Revert last migration
+- **make lib-check** - Show available library updates
+- **make lib-upgrade** - Update all libraries
+- **make docker-local-up** - Start local Docker services (PostgreSQL, Minio)
+- **make docker-local-down** - Stop local Docker services
+- **make docker-test-up** - Start test Docker services
+- **make docker-test-down** - Stop test Docker services
 - **make clean** - Clean build artifacts and node_modules
 
 ## Architecture Overview
@@ -61,12 +73,19 @@ The application follows a 4-layer Clean Architecture:
 
 1. **Core** (`src/core/`) - Domain logic and business rules
    - `common/` - Shared utilities, base classes, exceptions
-   - `domain/` - Domain entities, use cases, and business logic for User, Post, Media
-   - `service/` - Application services implementing domain use cases
+   - `domain/` - Domain entities, business interfaces, and data contracts for User, Post, Media, Chat
+     - `*/interface/` - Business operation contracts (e.g., CreateMediaInterface)
+     - `*/port/dto/` - Data transfer objects (e.g., CreateMediaDto)
+     - `*/port/persistence/` - Repository and storage interface contracts (e.g., MediaRepositoryPort)
+   - `service/*/service/` - Application services implementing domain interfaces
 
 2. **Infrastructure** (`src/infrastructure/`) - External concerns and adapters
-   - `adapter/` - Database (TypeORM), file storage (Minio) adapters
-   - `config/` - Configuration classes for API server, database, file storage
+   - `adapter/` - External system adapters
+     - `persistence/` - Database (Prisma) and storage (Minio) adapters
+     - `streaming/` - Server-Sent Events (SSE) adapters
+     - `workflow/` - LangGraph workflow adapters
+     - `validator/` - Data validation adapters (e.g., CreateMediaValidator)
+   - `config/` - Configuration classes for API server, database, file storage, LLM
    - `transaction/` - Transactional use case wrappers
 
 3. **Application** (`src/application/`) - HTTP API layer
@@ -76,9 +95,10 @@ The application follows a 4-layer Clean Architecture:
 ### Key Architectural Patterns
 
 - **Ports & Adapters**: Interfaces define contracts, adapters implement external systems
-- **Dependency Injection**: NestJS DI container with custom tokens in `CoreDITokens`
-- **Repository Pattern**: Domain repositories with TypeORM adapters
-- **Use Case Pattern**: Each business operation is a separate use case class
+- **Dependency Injection**: NestJS DI container with custom tokens in domain `DITokens`
+- **Repository Pattern**: Domain repositories with Prisma adapters
+- **Interface Pattern**: Each business operation is defined by an interface, implemented by services
+- **Validation Pattern**: Infrastructure validators handle data validation and transformation
 
 ### Cross-Domain Communication
 
@@ -86,11 +106,11 @@ The project uses direct dependency injection for cross-domain communication:
 
 - **Direct Repository Access**: Services directly inject repositories from other domains when needed
 - **Example**: `CreatePostService` injects `MediaRepositoryPort` and `UserRepositoryPort` to validate media and user access
-- **Transactional Consistency**: Cross-domain operations are handled within the same transaction using `typeorm-transactional-cls-hooked`
+- **Transactional Consistency**: Cross-domain operations are handled within the same transaction using Prisma transaction wrapper
 
 ```typescript
 // Example: CreatePostService accessing multiple domains
-export class CreatePostService implements CreatePostUseCase {
+export class CreatePostService implements CreatePostInterface {
   constructor(
     private readonly postRepository: PostRepositoryPort,
     private readonly userRepository: UserRepositoryPort,
@@ -113,6 +133,7 @@ export class CreatePostService implements CreatePostUseCase {
 - **User**: Guest or Author accounts with authentication
 - **Post**: Draft/published posts with optional media attachments
 - **Media**: File uploads managed by Authors
+- **Chat**: AI-powered chat streams with LangGraph workflow integration
 
 ### Domain Directory Structure
 
@@ -120,7 +141,7 @@ Each domain module (e.g., `@src/core/domain/media`) follows a consistent structu
 
 #### **`di/`** - Dependency Injection Tokens
 - Contains DI token definitions for the domain
-- Example: `MediaDITokens.ts` defines symbols for use cases, handlers, and repositories
+- Example: `MediaDITokens.ts` defines symbols for interfaces, handlers, and repositories
 - Ensures type-safe dependency injection across layers
 
 #### **`entity/`** - Domain Entities  
@@ -129,20 +150,19 @@ Each domain module (e.g., `@src/core/domain/media`) follows a consistent structu
 - `type/` subdirectory contains entity payload interfaces (CreateMediaEntityPayload, EditMediaEntityPayload)
 - Entities extend base classes (Entity, RemovableEntity) and use class-validator decorators
 
+#### **`interface/`** - Business Operation Contracts
+- Business use case interface definitions
+- Example: `CreateMediaInterface.ts` extends TransactionalInterface
+- Defines application boundaries and business operation contracts
+- Services implement these interfaces for dependency inversion
 
 #### **`port/`** - Interface Definitions (Hexagonal Architecture)
+- **`dto/`** - Data Transfer Objects
+  - Input/output data contracts (CreateMediaDto, StreamChatDto)
+  - Enables dependency inversion principle for data structures
 - **`persistence/`** - Repository and storage interface contracts
   - `MediaRepositoryPort.ts` - Data access interface
-  - `MediaFileStoragePort.ts` - File storage interface  
-- **`usecase/`** - Use case input/output contracts
-  - Port interfaces define use case boundaries (CreateMediaPort, EditMediaPort)
-  - Enables dependency inversion principle
-
-#### **`usecase/`** - Use Case Interfaces
-- Business operation contracts
-- Example: `CreateMediaUseCase.ts` extends TransactionalUseCase
-- `dto/` subdirectory contains data transfer objects (MediaUseCaseDto)
-- Defines application boundaries and use case contracts
+  - `MediaFileStoragePort.ts` - File storage interface
 
 #### **`value-object/`** - Domain Value Objects
 - Immutable objects representing domain concepts
@@ -169,20 +189,63 @@ Each domain module (e.g., `@src/core/domain/media`) follows a consistent structu
 - Coverage reports generated in `.coverage/` directory
 
 ### File Organization
-- **Migrations**: `src/infrastructure/adapter/persistence/typeorm/migration/`
+- **Database Schema**: `prisma/schema.prisma` - Prisma schema definition
 - **Test Assets**: `test/e2e/asset/content/`
 - **Environment Files**: `env/` directory with separate configs for local/test
 - **Docker Configs**: Root level docker-compose files for different environments
+- **LLM Workflows**: `src/infrastructure/adapter/workflow/langgraph/` - AI chat workflows
+
+## Coding Standards
+
+The project enforces strict TypeScript coding standards via ESLint configuration (`.eslintrc`):
+
+### Type Safety Requirements
+- **Explicit Type Declarations**: All member variables, properties, and variable declarations MUST have explicit type annotations (`@typescript-eslint/typedef`)
+- **No Non-Null Assertions**: The `!` operator is forbidden in production code (`@typescript-eslint/no-non-null-assertion: "error"`)
+  - Exception: Test files allow non-null assertions for test clarity
+- **No `any` Types**: Explicit `any` types are prohibited (`@typescript-eslint/no-explicit-any: "error"`)
+  - Exception: Test files allow `any` for testing flexibility
+
+### Code Style Standards
+- **Quotes**: Single quotes required (`quotes: ["error", "single"]`)
+- **Indentation**: 2 spaces with special handling for member expressions (`indent: ["error", 2]`)
+- **Semicolons**: Required at statement ends (`@typescript-eslint/semi: ["error", "always"]`)
+
+### Type Declaration Examples
+```typescript
+// ✅ Correct - Explicit types required
+private readonly userRepository: UserRepositoryPort;
+public readonly id: string;
+const result: CreateUserResult = await this.userService.create(payload);
+
+// ❌ Incorrect - Missing type annotations
+private readonly userRepository;
+public readonly id;
+const result = await this.userService.create(payload);
+
+// ❌ Forbidden - Non-null assertion in production code
+const user = await this.userRepository.findById(id)!;
+
+// ✅ Correct - Proper null checking
+const user: User | null = await this.userRepository.findById(id);
+if (!user) {
+  throw new UserNotFoundException();
+}
+```
+
+### ESLint Overrides
+- **Test Files** (`test/**/*`): Relaxed rules allowing non-null assertions and `any` types for testing convenience
+- **Production Code**: Strict enforcement of all type safety rules
 
 ## Key Implementation Notes
 
-- Uses TypeORM with PostgreSQL for persistence
+- Uses Prisma ORM with PostgreSQL for persistence
 - Minio for file storage
 - Passport.js for JWT and local authentication
 - NestJS as the HTTP framework
 - Custom build script compiles to `dist/` with production dependencies
 - Module aliases configured in both TypeScript and Jest configurations
-- Transactional use cases use `typeorm-transactional-cls-hooked`
+- Transactional use cases use Prisma transactions with custom wrapper
 - LangChain integration for potential AI features
 - Jest testing with sonar reporter and junit output
 - ESLint with TypeScript parser for code quality
@@ -196,3 +259,4 @@ The custom build script (`scripts/build.sh`) performs:
 4. **Install**: Production dependencies installed in dist/ directory
 
 This creates a self-contained dist/ folder ready for deployment.
+- memory 尽量不要使用 unknown 进行类型标注

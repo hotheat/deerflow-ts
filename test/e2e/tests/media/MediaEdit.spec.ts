@@ -6,7 +6,7 @@ import { MediaDITokens } from '@core/domain/media/di/MediaDITokens';
 import { Media } from '@core/domain/media/entity/Media';
 import { MediaRepositoryPort } from '@core/domain/media/port/persistence/MediaRepositoryPort';
 import { User } from '@core/domain/user/entity/User';
-import { EditMediaAdapter } from '@infrastructure/adapter/usecase/media/EditMediaAdapter';
+import { EditMediaValidator } from '@infrastructure/adapter/validator/media/EditMediaValidator';
 import { FileStorageConfig } from '@infrastructure/config/FileStorageConfig';
 import { HttpStatus } from '@nestjs/common';
 import { TestServer } from '@test/.common/TestServer';
@@ -120,7 +120,7 @@ describe('Media.Edit', () => {
         .set('x-api-token', auth.accessToken)
         .expect(HttpStatus.OK);
       
-      expect(response.body.data.context).toBe(EditMediaAdapter.name);
+      expect(response.body.data.context).toBe(EditMediaValidator.name);
       expect(response.body.data.errors.map((error: Record<string, unknown>) => error.property)).toEqual(['mediaId', 'name']);
       
       ResponseExpect.codeAndMessage(response.body, {code: Code.USE_CASE_PORT_VALIDATION_ERROR.code, message: Code.USE_CASE_PORT_VALIDATION_ERROR.message});

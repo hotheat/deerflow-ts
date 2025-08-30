@@ -2,11 +2,11 @@ export class MediaDITokens {
   
   // Use-cases
   
-  public static readonly CreateMediaUseCase: unique symbol  = Symbol('CreateMediaUseCase');
-  public static readonly EditMediaUseCase: unique symbol    = Symbol('EditMediaUseCase');
-  public static readonly GetMediaListUseCase: unique symbol = Symbol('GetMediaListUseCase');
-  public static readonly GetMediaUseCase: unique symbol     = Symbol('GetMediaUseCase');
-  public static readonly RemoveMediaUseCase: unique symbol  = Symbol('RemoveMediaUseCase');
+  public static readonly CreateMediaInterface: unique symbol  = Symbol('CreateMediaInterface');
+  public static readonly EditMediaInterface: unique symbol    = Symbol('EditMediaInterface');
+  public static readonly GetMediaListInterface: unique symbol = Symbol('GetMediaListInterface');
+  public static readonly GetMediaInterface: unique symbol     = Symbol('GetMediaInterface');
+  public static readonly RemoveMediaInterface: unique symbol  = Symbol('RemoveMediaInterface');
   
   
   // Repositories

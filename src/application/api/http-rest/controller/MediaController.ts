@@ -10,17 +10,17 @@ import { CoreApiResponse } from '@core/common/api/CoreApiResponse';
 import { MediaType } from '@core/common/enums/MediaEnums';
 import { UserRole } from '@core/common/enums/UserEnums';
 import { MediaDITokens } from '@core/domain/media/di/MediaDITokens';
-import { CreateMediaUseCase } from '@core/domain/media/usecase/CreateMediaUseCase';
-import { MediaUseCaseDto } from '@core/domain/media/usecase/dto/MediaUseCaseDto';
-import { EditMediaUseCase } from '@core/domain/media/usecase/EditMediaUseCase';
-import { GetMediaListUseCase } from '@core/domain/media/usecase/GetMediaListUseCase';
-import { GetMediaUseCase } from '@core/domain/media/usecase/GetMediaUseCase';
-import { RemoveMediaUseCase } from '@core/domain/media/usecase/RemoveMediaUseCase';
-import { CreateMediaAdapter } from '@infrastructure/adapter/usecase/media/CreateMediaAdapter';
-import { EditMediaAdapter } from '@infrastructure/adapter/usecase/media/EditMediaAdapter';
-import { GetMediaAdapter } from '@infrastructure/adapter/usecase/media/GetMediaAdapter';
-import { GetMediaListAdapter } from '@infrastructure/adapter/usecase/media/GetMediaListAdapter';
-import { RemoveMediaAdapter } from '@infrastructure/adapter/usecase/media/RemoveMediaAdapter';
+import { CreateMediaInterface } from '@core/domain/media/interface/CreateMediaInterface';
+import { MediaInterfaceDto } from '@core/domain/media/port/dto/MediaInterfaceDto';
+import { EditMediaInterface } from '@core/domain/media/interface/EditMediaInterface';
+import { GetMediaListInterface } from '@core/domain/media/interface/GetMediaListInterface';
+import { GetMediaInterface } from '@core/domain/media/interface/GetMediaInterface';
+import { RemoveMediaInterface } from '@core/domain/media/interface/RemoveMediaInterface';
+import { CreateMediaValidator } from '@infrastructure/adapter/validator/media/CreateMediaValidator';
+import { EditMediaValidator } from '@infrastructure/adapter/validator/media/EditMediaValidator';
+import { GetMediaValidator } from '@infrastructure/adapter/validator/media/GetMediaValidator';
+import { GetMediaListValidator } from '@infrastructure/adapter/validator/media/GetMediaListValidator';
+import { RemoveMediaValidator } from '@infrastructure/adapter/validator/media/RemoveMediaValidator';
 import { FileStorageConfig } from '@infrastructure/config/FileStorageConfig';
 import {
   Body,
@@ -48,20 +48,20 @@ import { resolve } from 'url';
 export class MediaController {
   
   constructor(
-    @Inject(MediaDITokens.CreateMediaUseCase)
-    private readonly createMediaUseCase: CreateMediaUseCase,
+    @Inject(MediaDITokens.CreateMediaInterface)
+    private readonly createMediaInterface: CreateMediaInterface,
     
-    @Inject(MediaDITokens.EditMediaUseCase)
-    private readonly editMediaUseCase: EditMediaUseCase,
+    @Inject(MediaDITokens.EditMediaInterface)
+    private readonly editMediaInterface: EditMediaInterface,
     
-    @Inject(MediaDITokens.GetMediaListUseCase)
-    private readonly getMediaListUseCase: GetMediaListUseCase,
+    @Inject(MediaDITokens.GetMediaListInterface)
+    private readonly getMediaListInterface: GetMediaListInterface,
     
-    @Inject(MediaDITokens.GetMediaUseCase)
-    private readonly getMediaUseCase: GetMediaUseCase,
+    @Inject(MediaDITokens.GetMediaInterface)
+    private readonly getMediaInterface: GetMediaInterface,
     
-    @Inject(MediaDITokens.RemoveMediaUseCase)
-    private readonly removeMediaUseCase: RemoveMediaUseCase,
+    @Inject(MediaDITokens.RemoveMediaInterface)
+    private readonly removeMediaInterface: RemoveMediaInterface,
   ) {}
   
   @Post()
@@ -79,16 +79,16 @@ export class MediaController {
     @UploadedFile() file: MulterFile,
     @Query() query: HttpRestApiModelCreateMediaQuery
     
-  ): Promise<CoreApiResponse<MediaUseCaseDto>> {
+  ): Promise<CoreApiResponse<MediaInterfaceDto>> {
   
-    const adapter: CreateMediaAdapter = await CreateMediaAdapter.new({
+    const adapter: CreateMediaValidator = await CreateMediaValidator.new({
       executorId: request.user.id,
       name      : query.name || parse(file.originalname).name,
       type      : query.type,
       file      : file.buffer,
     });
     
-    const createdMedia: MediaUseCaseDto = await this.createMediaUseCase.execute(adapter);
+    const createdMedia: MediaInterfaceDto = await this.createMediaInterface.execute(adapter);
     this.setFileStorageBasePath([createdMedia]);
     
     return CoreApiResponse.success(createdMedia);
@@ -105,15 +105,15 @@ export class MediaController {
     @Body() body: HttpRestApiModelEditMediaBody,
     @Param('mediaId') mediaId: string
     
-  ): Promise<CoreApiResponse<MediaUseCaseDto>> {
+  ): Promise<CoreApiResponse<MediaInterfaceDto>> {
     
-    const adapter: EditMediaAdapter = await EditMediaAdapter.new({
+    const adapter: EditMediaValidator = await EditMediaValidator.new({
       mediaId    : mediaId,
       executorId : user.id,
       name       : body.name,
     });
     
-    const editedMedia: MediaUseCaseDto = await this.editMediaUseCase.execute(adapter);
+    const editedMedia: MediaInterfaceDto = await this.editMediaInterface.execute(adapter);
     this.setFileStorageBasePath([editedMedia]);
     
     return CoreApiResponse.success(editedMedia);
@@ -124,9 +124,9 @@ export class MediaController {
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiResponse({status: HttpStatus.OK, type: HttpRestApiResponseMediaList})
-  public async getMediaList(@HttpUser() user: HttpUserPayload): Promise<CoreApiResponse<MediaUseCaseDto[]>> {
-    const adapter: GetMediaListAdapter = await GetMediaListAdapter.new({executorId: user.id});
-    const medias: MediaUseCaseDto[] = await this.getMediaListUseCase.execute(adapter);
+  public async getMediaList(@HttpUser() user: HttpUserPayload): Promise<CoreApiResponse<MediaInterfaceDto[]>> {
+    const adapter: GetMediaListValidator = await GetMediaListValidator.new({executorId: user.id});
+    const medias: MediaInterfaceDto[] = await this.getMediaListInterface.execute(adapter);
     this.setFileStorageBasePath(medias);
     
     return CoreApiResponse.success(medias);
@@ -137,9 +137,9 @@ export class MediaController {
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiResponse({status: HttpStatus.OK, type: HttpRestApiResponseMedia})
-  public async getMedia(@HttpUser() user: HttpUserPayload, @Param('mediaId') mediaId: string): Promise<CoreApiResponse<MediaUseCaseDto>> {
-    const adapter: GetMediaAdapter = await GetMediaAdapter.new({executorId: user.id, mediaId: mediaId,});
-    const media: MediaUseCaseDto = await this.getMediaUseCase.execute(adapter);
+  public async getMedia(@HttpUser() user: HttpUserPayload, @Param('mediaId') mediaId: string): Promise<CoreApiResponse<MediaInterfaceDto>> {
+    const adapter: GetMediaValidator = await GetMediaValidator.new({executorId: user.id, mediaId: mediaId,});
+    const media: MediaInterfaceDto = await this.getMediaInterface.execute(adapter);
     this.setFileStorageBasePath([media]);
     
     return CoreApiResponse.success(media);
@@ -151,14 +151,14 @@ export class MediaController {
   @ApiBearerAuth()
   @ApiResponse({status: HttpStatus.OK, type: HttpRestApiResponseMedia})
   public async removeMedia(@HttpUser() user: HttpUserPayload, @Param('mediaId') mediaId: string): Promise<CoreApiResponse<void>> {
-    const adapter: RemoveMediaAdapter = await RemoveMediaAdapter.new({executorId: user.id, mediaId: mediaId,});
-    await this.removeMediaUseCase.execute(adapter);
+    const adapter: RemoveMediaValidator = await RemoveMediaValidator.new({executorId: user.id, mediaId: mediaId,});
+    await this.removeMediaInterface.execute(adapter);
     
     return CoreApiResponse.success();
   }
   
-  private setFileStorageBasePath(medias: MediaUseCaseDto[]): void {
-    medias.forEach((media: MediaUseCaseDto) => media.url = resolve(FileStorageConfig.BASE_PATH, media.url));
+  private setFileStorageBasePath(medias: MediaInterfaceDto[]): void {
+    medias.forEach((media: MediaInterfaceDto) => media.url = resolve(FileStorageConfig.BASE_PATH, media.url));
   }
   
 }

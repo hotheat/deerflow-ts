@@ -6,7 +6,7 @@ import { MediaDITokens } from '@core/domain/media/di/MediaDITokens';
 import { Media } from '@core/domain/media/entity/Media';
 import { MediaRepositoryPort } from '@core/domain/media/port/persistence/MediaRepositoryPort';
 import { User } from '@core/domain/user/entity/User';
-import { CreateMediaAdapter } from '@infrastructure/adapter/usecase/media/CreateMediaAdapter';
+import { CreateMediaValidator } from '@infrastructure/adapter/validator/media/CreateMediaValidator';
 import { FileStorageConfig } from '@infrastructure/config/FileStorageConfig';
 import { HttpStatus } from '@nestjs/common';
 import { TestServer } from '@test/.common/TestServer';
@@ -89,8 +89,8 @@ describe('Media.Create', () => {
         .set('x-api-token', auth.accessToken)
         .expect(HttpStatus.OK);
       
-      expect(response.body.data.context).toBe(CreateMediaAdapter.name);
-      expect(response.body.data.errors.map((error: Record<string, unknown>) => error.property)).toEqual(['type']);
+      expect(response.body.data.context).toBe(CreateMediaValidator.name);
+      expect(response.body.data.errors.map((error: Record<string, any>) => error.property)).toEqual(['type']);
     
       ResponseExpect.codeAndMessage(response.body, {code: Code.USE_CASE_PORT_VALIDATION_ERROR.code, message: Code.USE_CASE_PORT_VALIDATION_ERROR.message});
     });
@@ -127,7 +127,7 @@ async function expectItCreatesMedia(
   
   const createdMedia: Optional<Media> = await mediaRepository.findMedia({id: response.body.data.id});
   
-  const expectedMediaData: Record<string, unknown> = {
+  const expectedMediaData: Record<string, any> = {
     id       : createdMedia!.getId(),
     ownerId  : executor.getId(),
     name     : mediaName,

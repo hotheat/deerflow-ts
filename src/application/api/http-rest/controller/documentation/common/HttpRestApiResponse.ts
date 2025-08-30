@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { PrimitiveValue } from '@core/common/type/CommonTypes';
 
-export class HttpRestApiResponse {
+export class HttpRestApiResponse<TData = Record<string, PrimitiveValue> | Record<string, PrimitiveValue>[] | object> {
   
   @ApiProperty({type: 'number'})
   public code: number;
@@ -12,6 +13,6 @@ export class HttpRestApiResponse {
   public timestamp: number;
   
   @ApiProperty({ type: 'object' })
-  public data: unknown;
+  public data: TData | null;
 
 }

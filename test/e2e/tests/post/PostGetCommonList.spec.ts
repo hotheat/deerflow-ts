@@ -12,7 +12,7 @@ import { PostFixture } from '@test/e2e/fixture/PostFixture';
 import { UserFixture } from '@test/e2e/fixture/UserFixture';
 import * as supertest from 'supertest';
 import { v4 } from 'uuid';
-import { PostUseCaseDto } from '@core/domain/post/usecase/dto/PostUseCaseDto';
+import { PostInterfaceDto } from '@core/domain/post/port/dto/PostInterfaceDto';
 
 describe('Post.GetCommonList', () => {
   
@@ -96,7 +96,7 @@ async function expectItReturnsListWithPublishedPosts(
   ];
   
   const authorIds: string[] = [executor.getId(), otherUser.getId()];
-  const receivedPostList: PostUseCaseDto[] = response.body.data.filter((item: PostUseCaseDto) => authorIds.includes(item.owner.id));
+  const receivedPostList: PostInterfaceDto[] = response.body.data.filter((item: PostInterfaceDto) => authorIds.includes(item.owner.id));
   
   ResponseExpect.codeAndMessage(response.body, {code: Code.SUCCESS.code, message: Code.SUCCESS.message});
   

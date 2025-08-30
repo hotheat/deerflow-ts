@@ -3,16 +3,16 @@ import { UserRole } from '@core/common/enums/UserEnums';
 import { Post } from '@core/domain/post/entity/Post';
 import { PostImage } from '@core/domain/post/entity/PostImage';
 import { PostOwner } from '@core/domain/post/entity/PostOwner';
-import { PostUseCaseDto } from '@core/domain/post/usecase/dto/PostUseCaseDto';
+import { PostInterfaceDto } from '@core/domain/post/port/dto/PostInterfaceDto';
 import { v4 } from 'uuid';
 
-describe('PostUseCaseDto', () => {
+describe('PostInterfaceDto', () => {
 
   describe('newFromPost', () => {
   
-    test('Expect it creates PostUseCaseDto instance with required parameters', async () => {
+    test('Expect it creates PostInterfaceDto instance with required parameters', async () => {
       const post: Post = await createPost();
-      const postUseCaseDto: PostUseCaseDto = PostUseCaseDto.newFromPost(post);
+      const postInterfaceDto: PostInterfaceDto = PostInterfaceDto.newFromPost(post);
       
       const expectedOwner: Record<string, unknown> = {
         id  : post.getOwner().getId(),
@@ -25,24 +25,24 @@ describe('PostUseCaseDto', () => {
         url: post.getImage()!.getRelativePath(),
       };
   
-      expect(postUseCaseDto.id).toBe(post.getId());
-      expect(postUseCaseDto.owner).toEqual(expectedOwner);
-      expect(postUseCaseDto.image).toEqual(expectedImage);
-      expect(postUseCaseDto.title).toBe(post.getTitle());
-      expect(postUseCaseDto.content).toBe(post.getContent());
-      expect(postUseCaseDto.status).toBe(post.getStatus());
-      expect(postUseCaseDto.createdAt).toBe(post.getCreatedAt().getTime());
-      expect(postUseCaseDto.publishedAt).toBe(post.getPublishedAt()?.getTime());
-      expect(postUseCaseDto.editedAt).toBe(post.getEditedAt()?.getTime());
+      expect(postInterfaceDto.id).toBe(post.getId());
+      expect(postInterfaceDto.owner).toEqual(expectedOwner);
+      expect(postInterfaceDto.image).toEqual(expectedImage);
+      expect(postInterfaceDto.title).toBe(post.getTitle());
+      expect(postInterfaceDto.content).toBe(post.getContent());
+      expect(postInterfaceDto.status).toBe(post.getStatus());
+      expect(postInterfaceDto.createdAt).toBe(post.getCreatedAt().getTime());
+      expect(postInterfaceDto.publishedAt).toBe(post.getPublishedAt()?.getTime());
+      expect(postInterfaceDto.editedAt).toBe(post.getEditedAt()?.getTime());
     });
     
   });
   
   describe('newListFromPosts', () => {
     
-    test('Expect it creates PostUseCaseDto instances with required parameters', async () => {
+    test('Expect it creates PostInterfaceDto instances with required parameters', async () => {
       const post: Post = await createPost();
-      const postUseCaseDtos: PostUseCaseDto[] = PostUseCaseDto.newListFromPosts([post]);
+      const postInterfaceDtos: PostInterfaceDto[] = PostInterfaceDto.newListFromPosts([post]);
   
       const expectedOwner: Record<string, unknown> = {
         id  : post.getOwner().getId(),
@@ -55,16 +55,16 @@ describe('PostUseCaseDto', () => {
         url: post.getImage()!.getRelativePath(),
       };
   
-      expect(postUseCaseDtos.length).toBe(1);
-      expect(postUseCaseDtos[0].id).toBe(post.getId());
-      expect(postUseCaseDtos[0].owner).toEqual(expectedOwner);
-      expect(postUseCaseDtos[0].image).toEqual(expectedImage);
-      expect(postUseCaseDtos[0].title).toBe(post.getTitle());
-      expect(postUseCaseDtos[0].content).toBe(post.getContent());
-      expect(postUseCaseDtos[0].status).toBe(post.getStatus());
-      expect(postUseCaseDtos[0].createdAt).toBe(post.getCreatedAt().getTime());
-      expect(postUseCaseDtos[0].publishedAt).toBe(post.getPublishedAt()?.getTime());
-      expect(postUseCaseDtos[0].editedAt).toBe(post.getEditedAt()?.getTime());
+      expect(postInterfaceDtos.length).toBe(1);
+      expect(postInterfaceDtos[0].id).toBe(post.getId());
+      expect(postInterfaceDtos[0].owner).toEqual(expectedOwner);
+      expect(postInterfaceDtos[0].image).toEqual(expectedImage);
+      expect(postInterfaceDtos[0].title).toBe(post.getTitle());
+      expect(postInterfaceDtos[0].content).toBe(post.getContent());
+      expect(postInterfaceDtos[0].status).toBe(post.getStatus());
+      expect(postInterfaceDtos[0].createdAt).toBe(post.getCreatedAt().getTime());
+      expect(postInterfaceDtos[0].publishedAt).toBe(post.getPublishedAt()?.getTime());
+      expect(postInterfaceDtos[0].editedAt).toBe(post.getEditedAt()?.getTime());
     });
     
   });

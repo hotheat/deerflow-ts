@@ -61,5 +61,32 @@ export class Code {
     code: 1004,
     message: 'Entity already exists.'
   };
+
+  // Chat Workflow Errors
+  
+  public static CHAT_WORKFLOW_ERROR: CodeDescription = {
+    code: 2000,
+    message: 'Chat workflow error.'
+  };
+  
+  public static LLM_INVOCATION_ERROR: CodeDescription = {
+    code: 2001,
+    message: 'LLM invocation failed.'
+  };
+  
+  public static STREAM_PROCESSING_ERROR: CodeDescription = {
+    code: 2002,
+    message: 'Stream processing error.'
+  };
+  
+  public static CHAT_STATE_ERROR: CodeDescription = {
+    code: 2003,
+    message: 'Chat state management error.'
+  };
+  
+  public static LLM_CONFIGURATION_ERROR: CodeDescription = {
+    code: 2004,
+    message: 'LLM configuration error.'
+  };
   
 }

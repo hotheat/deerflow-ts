@@ -7,22 +7,22 @@ import { PostDITokens } from '@core/domain/post/di/PostDITokens';
 import { Post } from '@core/domain/post/entity/Post';
 import { PostOwner } from '@core/domain/post/entity/PostOwner';
 import { PostRepositoryPort } from '@core/domain/post/port/persistence/PostRepositoryPort';
-import { GetPostPort } from '@core/domain/post/port/usecase/GetPostPort';
-import { PostUseCaseDto } from '@core/domain/post/usecase/dto/PostUseCaseDto';
-import { GetPostUseCase } from '@core/domain/post/usecase/GetPostUseCase';
-import { GetPostService } from '@core/service/post/usecase/GetPostService';
+import { GetPostDto } from '@core/domain/post/port/dto/GetPostDto';
+import { PostInterfaceDto } from '@core/domain/post/port/dto/PostInterfaceDto';
+import { GetPostInterface } from '@core/domain/post/interface/GetPostInterface';
+import { GetPostService } from '@core/service/post/service/GetPostService';
 import { Test, TestingModule } from '@nestjs/testing';
 import { v4 } from 'uuid';
 
 describe('GetPostService', () => {
-  let getPostService: GetPostUseCase;
+  let getPostService: GetPostInterface;
   let postRepository: PostRepositoryPort;
   
   beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         {
-          provide: PostDITokens.GetPostUseCase,
+          provide: PostDITokens.GetPostInterface,
           useFactory: (postRepository) => new GetPostService(postRepository),
           inject: [PostDITokens.PostRepository]
         },
@@ -35,7 +35,7 @@ describe('GetPostService', () => {
       ]
     }).compile();
   
-    getPostService = module.get<GetPostUseCase>(PostDITokens.GetPostUseCase);
+    getPostService = module.get<GetPostInterface>(PostDITokens.GetPostInterface);
     postRepository = module.get<PostRepositoryPort>(PostDITokens.PostRepository);
   });
   
@@ -46,12 +46,12 @@ describe('GetPostService', () => {
       
       jest.spyOn(postRepository, 'findPost').mockImplementation(async () => mockPost);
       
-      const expectedPostUseCaseDto: PostUseCaseDto = await PostUseCaseDto.newFromPost(mockPost);
+      const expectedPostInterfaceDto: PostInterfaceDto = await PostInterfaceDto.newFromPost(mockPost);
   
-      const getPostPort: GetPostPort = {executorId: mockPost.getOwner().getId(), postId: mockPost.getId()};
-      const resultPostUseCaseDto: PostUseCaseDto = await getPostService.execute(getPostPort);
+      const getPostPort: GetPostDto = {executorId: mockPost.getOwner().getId(), postId: mockPost.getId()};
+      const resultPostInterfaceDto: PostInterfaceDto = await getPostService.execute(getPostPort);
       
-      expect(resultPostUseCaseDto).toEqual(expectedPostUseCaseDto);
+      expect(resultPostInterfaceDto).toEqual(expectedPostInterfaceDto);
     });
   
     test('When user try to get own published post, expect it returns post', async () => {
@@ -59,12 +59,12 @@ describe('GetPostService', () => {
     
       jest.spyOn(postRepository, 'findPost').mockImplementation(async () => mockPost);
     
-      const expectedPostUseCaseDto: PostUseCaseDto = await PostUseCaseDto.newFromPost(mockPost);
+      const expectedPostInterfaceDto: PostInterfaceDto = await PostInterfaceDto.newFromPost(mockPost);
     
-      const getPostPort: GetPostPort = {executorId: mockPost.getOwner().getId(), postId: mockPost.getId()};
-      const resultPostUseCaseDto: PostUseCaseDto = await getPostService.execute(getPostPort);
+      const getPostPort: GetPostDto = {executorId: mockPost.getOwner().getId(), postId: mockPost.getId()};
+      const resultPostInterfaceDto: PostInterfaceDto = await getPostService.execute(getPostPort);
     
-      expect(resultPostUseCaseDto).toEqual(expectedPostUseCaseDto);
+      expect(resultPostInterfaceDto).toEqual(expectedPostInterfaceDto);
     });
   
     test('When post not found, expect it throws Exception', async () => {
@@ -73,7 +73,7 @@ describe('GetPostService', () => {
       expect.hasAssertions();
       
       try {
-        const getPostPort: GetPostPort = {executorId: v4(), postId: v4()};
+        const getPostPort: GetPostDto = {executorId: v4(), postId: v4()};
         await getPostService.execute(getPostPort);
         
       } catch (e) {
@@ -90,12 +90,12 @@ describe('GetPostService', () => {
     
       jest.spyOn(postRepository, 'findPost').mockImplementation(async () => mockPost);
     
-      const expectedPostUseCaseDto: PostUseCaseDto = await PostUseCaseDto.newFromPost(mockPost);
+      const expectedPostInterfaceDto: PostInterfaceDto = await PostInterfaceDto.newFromPost(mockPost);
     
-      const getPostPort: GetPostPort = {executorId: v4(), postId: mockPost.getId()};
-      const resultPostUseCaseDto: PostUseCaseDto = await getPostService.execute(getPostPort);
+      const getPostPort: GetPostDto = {executorId: v4(), postId: mockPost.getId()};
+      const resultPostInterfaceDto: PostInterfaceDto = await getPostService.execute(getPostPort);
     
-      expect(resultPostUseCaseDto).toEqual(expectedPostUseCaseDto);
+      expect(resultPostInterfaceDto).toEqual(expectedPostInterfaceDto);
     });
   
     test('When user try to get other people\'s draft post, expect it throws Exception', async () => {
@@ -106,7 +106,7 @@ describe('GetPostService', () => {
       expect.hasAssertions();
     
       try {
-        const getPostPort: GetPostPort = {executorId: v4(), postId: v4()};
+        const getPostPort: GetPostDto = {executorId: v4(), postId: v4()};
         await getPostService.execute(getPostPort);
       
       } catch (e) {

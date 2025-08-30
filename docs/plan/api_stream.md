@@ -513,268 +513,85 @@ curl -X POST http://localhost:3005/api/chat/streams \
 # 预期输出：
 # {"success":true,"id":"cuid...","threadId":"test-thread-1","timestamp":"2024-..."}
 ```
+---
 
+### **阶段 4: LangGraph 集成 - 单节点流式聊天**
+**目标**: 使用 LangGraph 创建简单的单节点工作流，调用 OpenAI 聊天接口并通过 SSE 流式返回
+**测试方式**: 测试 LangGraph 工作流创建、节点执行、流式输出
+**预计时间**: 1天
 
-import { LLMConfig } from '@infrastructure/config/LLMConfig';
-
-export interface LLMProvider {
-  streamCompletion(messages: BaseMessage[]): AsyncIterableIterator<string>;
-  getCompletion(messages: BaseMessage[]): Promise<string>;
-}
-
-export class LangChainAdapter implements LLMProvider {
-  private llm: ChatOpenAI | ChatAnthropic;
-
-  constructor(provider?: string, model?: string) {
-    const selectedProvider = provider || LLMConfig.DEFAULT_PROVIDER;
-    const selectedModel = model || LLMConfig.DEFAULT_MODEL;
-
-    switch (selectedProvider) {
-      case 'openai':
-        this.llm = new ChatOpenAI({
-          modelName: selectedModel,
-          temperature: LLMConfig.TEMPERATURE,
-          maxTokens: LLMConfig.MAX_TOKENS,
-          streaming: true,
-          openAIApiKey: LLMConfig.OPENAI_API_KEY,
-        });
-        break;
-      case 'anthropic':
-        this.llm = new ChatAnthropic({
-          modelName: selectedModel,
-          temperature: LLMConfig.TEMPERATURE,
-          maxTokens: LLMConfig.MAX_TOKENS,
-          streaming: true,
-          anthropicApiKey: LLMConfig.ANTHROPIC_API_KEY,
-        });
-        break;
-      default:
-        throw new Error(`Unsupported LLM provider: ${selectedProvider}`);
-    }
-  }
-
-  public async* streamCompletion(messages: BaseMessage[]): AsyncIterableIterator<string> {
-    const stream = await this.llm.stream(messages);
-    
-    for await (const chunk of stream) {
-      if (chunk.content) {
-        yield chunk.content as string;
-      }
-    }
-  }
-
-  public async getCompletion(messages: BaseMessage[]): Promise<string> {
-    const result = await this.llm.invoke(messages);
-    return result.content as string;
-  }
-
-  public static convertToLangChainMessage(role: string, content: string): BaseMessage {
-    switch (role) {
-      case 'user':
-        return new HumanMessage(content);
-      case 'assistant':
-        return new AIMessage(content);
-      case 'system':
-        return new SystemMessage(content);
-      default:
-        throw new Error(`Unsupported message role: ${role}`);
-    }
-  }
-}
-```
-
-#### 4.2 Chat Service 实现
-创建 `src/core/service/chat/usecase/StreamChatService.ts`:
-```typescript
-import { Inject, Injectable } from '@nestjs/common';
-import { StreamChatUseCase } from '@core/domain/chat/usecase/StreamChatUseCase';
-import { StreamChatPort } from '@core/domain/chat/port/usecase/StreamChatPort';
-import { ChatRepositoryPort } from '@core/domain/chat/port/persistence/ChatRepositoryPort';
-import { ChatDITokens } from '@core/domain/chat/di/ChatDITokens';
-import { LangChainAdapter, LLMProvider } from '@infrastructure/adapter/llm/LangChainAdapter';
-import { Chat } from '@core/domain/chat/entity/Chat';
-import { ChatMessage } from '@core/domain/chat/entity/ChatMessage';
-import { MessageRole } from '@core/common/enums/ChatEnums';
-import { BaseMessage } from '@langchain/core/messages';
-
-export interface StreamChatResponse {
-  chatId: string;
-  messageId: string;
-  content: AsyncIterableIterator<string>;
-}
-
-@Injectable()
-export class StreamChatService implements StreamChatUseCase {
-  
-  constructor(
-    @Inject(ChatDITokens.ChatRepository)
-    private readonly chatRepository: ChatRepositoryPort,
-  ) {}
-
-  public async execute(port: StreamChatPort): Promise<StreamChatResponse> {
-    // 1. 获取或创建聊天会话
-    let chat: Chat;
-    if (port.chatId) {
-      chat = await this.chatRepository.findById(port.chatId);
-      if (!chat) {
-        throw new Error(`Chat not found: ${port.chatId}`);
-      }
-    } else {
-      chat = await Chat.new({
-        id: generateUuid(),
-        title: port.message.substring(0, 50) + '...',
-        userId: port.executorId,
-        createdAt: new Date(),
-      });
-      await this.chatRepository.save(chat);
-    }
-
-    // 2. 保存用户消息
-    const userMessage = await ChatMessage.new({
-      id: generateUuid(),
-      chatId: chat.getId(),
-      role: MessageRole.USER,
-      content: port.message,
-      timestamp: new Date(),
-    });
-
-    // 3. 获取聊天历史
-    const chatHistory = await this.chatRepository.getChatMessages(chat.getId());
-    
-    // 4. 转换为 LangChain 消息格式
-    const langChainMessages: BaseMessage[] = chatHistory.map(msg => 
-      LangChainAdapter.convertToLangChainMessage(msg.role, msg.content)
-    );
-    
-    // 添加当前用户消息
-    langChainMessages.push(
-      LangChainAdapter.convertToLangChainMessage(MessageRole.USER, port.message)
-    );
-
-    // 5. 创建LLM适配器并生成流式响应
-    const llmAdapter = new LangChainAdapter(port.provider, port.model);
-    
-    // 6. 创建AI消息记录（内容将在流式过程中更新）
-    const aiMessage = await ChatMessage.new({
-      id: generateUuid(),
-      chatId: chat.getId(),
-      role: MessageRole.ASSISTANT,
-      content: '', // 初始为空，流式过程中累积
-      timestamp: new Date(),
-    });
-
-    // 7. 返回流式响应
-    return {
-      chatId: chat.getId(),
-      messageId: aiMessage.getId(),
-      content: this.wrapStreamWithPersistence(
-        llmAdapter.streamCompletion(langChainMessages),
-        userMessage,
-        aiMessage
-      ),
-    };
-  }
-
-  private async* wrapStreamWithPersistence(
-    stream: AsyncIterableIterator<string>,
-    userMessage: ChatMessage,
-    aiMessage: ChatMessage
-  ): AsyncIterableIterator<string> {
-    let fullContent = '';
-    let isFirstChunk = true;
-
-    try {
-      for await (const chunk of stream) {
-        fullContent += chunk;
-        
-        // 第一次接收到内容时保存用户消息
-        if (isFirstChunk) {
-          await this.chatRepository.saveChatMessage(userMessage);
-          isFirstChunk = false;
-        }
-
-        yield chunk;
-      }
-
-      // 流结束后保存完整的AI消息
-      aiMessage.content = fullContent;
-      await this.chatRepository.saveChatMessage(aiMessage);
-
-    } catch (error) {
-      // 错误处理：保存已接收的部分内容
-      if (fullContent) {
-        aiMessage.content = fullContent + '\n[Error occurred during generation]';
-        await this.chatRepository.saveChatMessage(aiMessage);
-      }
-      throw error;
-    }
-  }
-}
-```
-
-#### 4.3 Controller 集成 LangChain
-更新 `ChatController.ts`:
-```typescript
-@Post('stream')
-@HttpAuth(UserRole.AUTHOR, UserRole.ADMIN, UserRole.GUEST)
-public async streamChat(
-  @HttpUser() user: HttpUserPayload,
-  @Body() body: StreamChatRequestBody,
-  @Res() response: Response
-): Promise<void> {
-  response.writeHead(200, {
-    'Content-Type': 'text/event-stream',
-    'Cache-Control': 'no-cache',
-    'Connection': 'keep-alive',
-  });
-
-  try {
-    const adapter: StreamChatAdapter = await StreamChatAdapter.new({
-      executorId: user.id,
-      message: body.message,
-      chatId: body.chatId,
-      provider: body.provider,
-      model: body.model,
-    });
-
-    const streamResponse = await this.streamChatUseCase.execute(adapter);
-    
-    // 发送开始事件
-    response.write(SSEAdapter.formatSSEEvent('stream_start', {
-      chatId: streamResponse.chatId,
-      messageId: streamResponse.messageId,
-    }));
-
-    // 流式输出AI响应
-    for await (const chunk of streamResponse.content) {
-      response.write(SSEAdapter.formatSSEChunk(chunk));
-    }
-
-    // 发送完成事件
-    response.write(SSEAdapter.formatSSEComplete());
-
-  } catch (error) {
-    response.write(SSEAdapter.formatSSEError(error.message));
-  } finally {
-    response.end();
-  }
-}
-```
-
-**测试验证**:
+#### 4.1 技术选型和依赖
 ```bash
-# 测试基础AI对话
-curl -N -H "Accept: text/event-stream" -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-  -X POST http://localhost:3005/api/chat/stream \
-  -H "Content-Type: application/json" \
-  -d '{
-    "message": "What is the capital of France?",
-    "provider": "openai",
-    "model": "gpt-4-turbo-preview"
-  }'
-
-# 预期输出：逐字符流式返回AI响应
+npm install @langchain/langgraph
 ```
+
+**核心技术**:
+- **LangGraph**: 构建单节点聊天工作流
+- **集成方式**: 作为 Infrastructure 层的工作流适配器
+- **流式输出**: 利用 LangGraph 流式执行 + OpenAI streaming
+
+#### 4.2 文件组织结构
+```
+@infrastructure/adapter/workflow/langgraph/
+├── ChatWorkflow.ts              # 主工作流类，构建 LangGraph 图
+├── state/
+│   └── ChatWorkflowState.ts     # 工作流状态定义（messages, currentResponse, isComplete, error）
+└── node/                        # 可选：节点实现目录
+    └── ChatNode.ts              # 聊天节点实现（简化版可直接在主类中）
+```
+
+#### 4.3 核心组件设计
+
+**ChatWorkflow 类职责**:
+- 构建 LangGraph StateGraph（START -> chat -> END）
+- 实现 `buildWorkflow()` 创建图结构
+- 实现 `streamChatWorkflow()` 执行流式聊天
+- 集成现有 LLMConfig 和 OpenAI 配置
+
+**ChatWorkflowState 接口**:
+- 定义工作流执行状态结构
+- 包含 messages, currentResponse, isComplete, error 字段
+- 支持状态在节点间传递和更新
+
+#### 4.4 Service 层集成点
+
+**StreamChatService 更新**:
+- 集成 ChatWorkflow 替代直接 LLM 调用
+- 保持现有持久化逻辑（chat_streams 表）
+- 实现 `wrapLangGraphStreamWithPersistence` 方法
+- 支持错误处理和部分内容保存
+
+#### 4.5 Controller 层扩展
+
+**支持 threadId 参数**:
+- 扩展 `StreamChatRequestBody` 接口添加 `threadId?` 字段
+- 实现会话连续性（新会话 vs 继续现有会话）
+- 保持现有 SSE 事件格式兼容性
+- 添加 `stream_start` 和 `stream_complete` 事件类型
+
+#### 4.6 实现流程
+
+1. **状态接口定义**: 创建 ChatWorkflowState
+2. **工作流构建**: 实现单节点 LangGraph 工作流
+3. **节点实现**: 创建调用 OpenAI 的聊天节点
+4. **Service 集成**: 更新 StreamChatService 使用工作流
+5. **Controller 更新**: 支持 threadId 和新事件格式
+6. **测试验证**: 验证流式输出和会话连续性
+
+#### 4.7 预期功能验证
+
+**核心特性**:
+- ✅ LangGraph 单节点工作流创建和执行
+- ✅ OpenAI 聊天接口集成（真实流式输出）
+- ✅ SSE 格式事件流返回
+- ✅ 聊天历史持久化到 chat_streams 表  
+- ✅ Thread ID 支持实现会话连续性
+- ✅ 错误处理和部分内容保存
+
+**测试场景**:
+- 新会话创建和流式响应
+- 使用 threadId 继续现有会话
+- 网络中断和错误恢复处理
 
 ---
 

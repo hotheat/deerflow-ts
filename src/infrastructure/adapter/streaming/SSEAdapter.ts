@@ -1,5 +1,7 @@
+import { PrimitiveValue } from '@core/common/type/CommonTypes';
+
 export class SSEAdapter {
-  public static formatSSEEvent(eventType: string, data: Record<string, unknown> | string | number | boolean | null): string {
+  public static formatSSEEvent(eventType: string, data: Record<string, PrimitiveValue> | PrimitiveValue): string {
     try {
       const jsonData: string = JSON.stringify(data, null, 0);
       return `event: ${eventType}\ndata: ${jsonData}\n\n`;

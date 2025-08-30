@@ -12,15 +12,15 @@ import { Post } from '@core/domain/post/entity/Post';
 import { PostImage } from '@core/domain/post/entity/PostImage';
 import { PostOwner } from '@core/domain/post/entity/PostOwner';
 import { PostRepositoryPort } from '@core/domain/post/port/persistence/PostRepositoryPort';
-import { EditPostPort } from '@core/domain/post/port/usecase/EditPostPort';
-import { PostUseCaseDto } from '@core/domain/post/usecase/dto/PostUseCaseDto';
-import { EditPostUseCase } from '@core/domain/post/usecase/EditPostUseCase';
-import { EditPostService } from '@core/service/post/usecase/EditPostService';
+import { EditPostDto } from '@core/domain/post/port/dto/EditPostDto';
+import { PostInterfaceDto } from '@core/domain/post/port/dto/PostInterfaceDto';
+import { EditPostInterface } from '@core/domain/post/interface/EditPostInterface';
+import { EditPostService } from '@core/service/post/service/EditPostService';
 import { Test, TestingModule } from '@nestjs/testing';
 import { v4 } from 'uuid';
 
 describe('EditPostService', () => {
-  let editPostService: EditPostUseCase;
+  let editPostService: EditPostInterface;
   let postRepository: PostRepositoryPort;
   let mediaRepository: MediaRepositoryPort;
   
@@ -28,7 +28,7 @@ describe('EditPostService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         {
-          provide: PostDITokens.EditPostUseCase,
+          provide: PostDITokens.EditPostInterface,
           useFactory: (postRepository, mediaRepository) => new EditPostService(postRepository, mediaRepository),
           inject: [PostDITokens.PostRepository, MediaDITokens.MediaRepository]
         },
@@ -48,7 +48,7 @@ describe('EditPostService', () => {
       ]
     }).compile();
   
-    editPostService = module.get<EditPostUseCase>(PostDITokens.EditPostUseCase);
+    editPostService = module.get<EditPostInterface>(PostDITokens.EditPostInterface);
     postRepository = module.get<PostRepositoryPort>(PostDITokens.PostRepository);
     mediaRepository = module.get<MediaRepositoryPort>(MediaDITokens.MediaRepository);
   });
@@ -65,7 +65,7 @@ describe('EditPostService', () => {
   
       jest.spyOn(postRepository, 'updatePost').mockClear();
   
-      const editPostPort: EditPostPort = {
+      const editPostPort: EditPostDto = {
         executorId: mockPost.getOwner().getId(),
         postId    : mockPost.getId(),
         title     : v4(),
@@ -80,14 +80,14 @@ describe('EditPostService', () => {
         createdAt: mockPost.getCreatedAt()
       });
   
-      const expectedPostUseCaseDto: PostUseCaseDto = await PostUseCaseDto.newFromPost(expectedPost);
+      const expectedPostInterfaceDto: PostInterfaceDto = await PostInterfaceDto.newFromPost(expectedPost);
   
-      const resultPostUseCaseDto: PostUseCaseDto = await editPostService.execute(editPostPort);
+      const resultPostInterfaceDto: PostInterfaceDto = await editPostService.execute(editPostPort);
       const resultUpdatedPost: Post = jest.spyOn(postRepository, 'updatePost').mock.calls[0][0];
   
-      expect(resultPostUseCaseDto.editedAt).toBeGreaterThanOrEqual(mockPost.getEditedAt()!.getTime());
+      expect(resultPostInterfaceDto.editedAt).toBeGreaterThanOrEqual(mockPost.getEditedAt()!.getTime());
   
-      expect(resultPostUseCaseDto).toEqual({...expectedPostUseCaseDto, editedAt: resultPostUseCaseDto.editedAt});
+      expect(resultPostInterfaceDto).toEqual({...expectedPostInterfaceDto, editedAt: resultPostInterfaceDto.editedAt});
       expect(resultUpdatedPost).toEqual({...expectedPost, editedAt: resultUpdatedPost.getEditedAt()});
     });
   
@@ -97,7 +97,7 @@ describe('EditPostService', () => {
       expect.hasAssertions();
     
       try {
-        const editPostPort: EditPostPort = {executorId: v4(), postId: v4(), title: v4()};
+        const editPostPort: EditPostDto = {executorId: v4(), postId: v4(), title: v4()};
         await editPostService.execute(editPostPort);
       
       } catch (e) {
@@ -120,7 +120,7 @@ describe('EditPostService', () => {
       expect.hasAssertions();
     
       try {
-        const editPostPort: EditPostPort = {executorId: mockPost.getOwner().getId(), postId: v4(), imageId: mockMedia.getId()};
+        const editPostPort: EditPostDto = {executorId: mockPost.getOwner().getId(), postId: v4(), imageId: mockMedia.getId()};
         await editPostService.execute(editPostPort);
       
       } catch (e) {
@@ -142,7 +142,7 @@ describe('EditPostService', () => {
       expect.hasAssertions();
     
       try {
-        const editPostPort: EditPostPort = {executorId: executorId, postId: mockPost.getId()};
+        const editPostPort: EditPostDto = {executorId: executorId, postId: mockPost.getId()};
         await editPostService.execute(editPostPort);
       
       } catch (e) {

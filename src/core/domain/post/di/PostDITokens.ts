@@ -2,12 +2,12 @@ export class PostDITokens {
   
   // Use-cases
   
-  public static readonly CreatePostUseCase: unique symbol  = Symbol('CreatePostUseCase');
-  public static readonly EditPostUseCase: unique symbol    = Symbol('EditPostUseCase');
-  public static readonly GetPostListUseCase: unique symbol = Symbol('GetPostListUseCase');
-  public static readonly GetPostUseCase: unique symbol     = Symbol('GetPostUseCase');
-  public static readonly PublishPostUseCase: unique symbol = Symbol('PublishPostUseCase');
-  public static readonly RemovePostUseCase: unique symbol  = Symbol('RemovePostUseCase');
+  public static readonly CreatePostInterface: unique symbol  = Symbol('CreatePostInterface');
+  public static readonly EditPostInterface: unique symbol    = Symbol('EditPostInterface');
+  public static readonly GetPostListInterface: unique symbol = Symbol('GetPostListInterface');
+  public static readonly GetPostInterface: unique symbol     = Symbol('GetPostInterface');
+  public static readonly PublishPostInterface: unique symbol = Symbol('PublishPostInterface');
+  public static readonly RemovePostInterface: unique symbol  = Symbol('RemovePostInterface');
   
   
   // Repositories

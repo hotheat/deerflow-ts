@@ -3,22 +3,22 @@ import { PostDITokens } from '@core/domain/post/di/PostDITokens';
 import { Post } from '@core/domain/post/entity/Post';
 import { PostOwner } from '@core/domain/post/entity/PostOwner';
 import { PostRepositoryPort } from '@core/domain/post/port/persistence/PostRepositoryPort';
-import { GetPostListPort } from '@core/domain/post/port/usecase/GetPostListPort';
-import { PostUseCaseDto } from '@core/domain/post/usecase/dto/PostUseCaseDto';
-import { GetPostListUseCase } from '@core/domain/post/usecase/GetPostListUseCase';
-import { GetPostListService } from '@core/service/post/usecase/GetPostListService';
+import { GetPostListDto } from '@core/domain/post/port/dto/GetPostListDto';
+import { PostInterfaceDto } from '@core/domain/post/port/dto/PostInterfaceDto';
+import { GetPostListInterface } from '@core/domain/post/interface/GetPostListInterface';
 import { Test, TestingModule } from '@nestjs/testing';
 import { v4 } from 'uuid';
+import {GetPostListService} from '@core/service/post/service/GetPostListService';
 
 describe('GetPostListService', () => {
-  let getPostListService: GetPostListUseCase;
+  let getPostListService: GetPostListInterface;
   let postRepository: PostRepositoryPort;
   
   beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         {
-          provide: PostDITokens.GetPostListUseCase,
+          provide: PostDITokens.GetPostListInterface,
           useFactory: (postRepository) => new GetPostListService(postRepository),
           inject: [PostDITokens.PostRepository]
         },
@@ -32,7 +32,7 @@ describe('GetPostListService', () => {
       ]
     }).compile();
   
-    getPostListService = module.get<GetPostListUseCase>(PostDITokens.GetPostListUseCase);
+    getPostListService = module.get<GetPostListInterface>(PostDITokens.GetPostListInterface);
     postRepository = module.get<PostRepositoryPort>(PostDITokens.PostRepository);
   });
   
@@ -43,10 +43,10 @@ describe('GetPostListService', () => {
       
       jest.spyOn(postRepository, 'findPosts').mockImplementation(async () => [mockPost]);
       
-      const expectedPostUseCaseDto: PostUseCaseDto = await PostUseCaseDto.newFromPost(mockPost);
+      const expectedPostUseCaseDto: PostInterfaceDto = await PostInterfaceDto.newFromPost(mockPost);
   
-      const getPostListPort: GetPostListPort = {executorId: mockPost.getOwner().getId()};
-      const resultPostUseCaseDtos: PostUseCaseDto[] = await getPostListService.execute(getPostListPort);
+      const getPostListPort: GetPostListDto = {executorId: mockPost.getOwner().getId()};
+      const resultPostUseCaseDtos: PostInterfaceDto[] = await getPostListService.execute(getPostListPort);
   
       expect(resultPostUseCaseDtos.length).toBe(1);
       expect(resultPostUseCaseDtos[0]).toEqual(expectedPostUseCaseDto);

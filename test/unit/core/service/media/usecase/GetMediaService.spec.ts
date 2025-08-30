@@ -5,23 +5,23 @@ import { ClassValidationDetails } from '@core/common/util/class-validator/ClassV
 import { MediaDITokens } from '@core/domain/media/di/MediaDITokens';
 import { Media } from '@core/domain/media/entity/Media';
 import { MediaRepositoryPort } from '@core/domain/media/port/persistence/MediaRepositoryPort';
-import { GetMediaPort } from '@core/domain/media/port/usecase/GetMediaPort';
-import { MediaUseCaseDto } from '@core/domain/media/usecase/dto/MediaUseCaseDto';
-import { GetMediaUseCase } from '@core/domain/media/usecase/GetMediaUseCase';
+import { GetMediaDto } from '@core/domain/media/port/dto/GetMediaDto';
+import { MediaInterfaceDto } from '@core/domain/media/port/dto/MediaInterfaceDto';
+import { GetMediaInterface } from '@core/domain/media/interface/GetMediaInterface';
 import { FileMetadata } from '@core/domain/media/value-object/FileMetadata';
-import { GetMediaService } from '@core/service/media/usecase/GetMediaService';
+import { GetMediaService } from '@core/service/media/service/GetMediaService';
 import { Test, TestingModule } from '@nestjs/testing';
 import { v4 } from 'uuid';
 
 describe('GetMediaService', () => {
-  let getMediaService: GetMediaUseCase;
+  let getMediaService: GetMediaInterface;
   let mediaRepository: MediaRepositoryPort;
   
   beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         {
-          provide: MediaDITokens.GetMediaUseCase,
+          provide: MediaDITokens.GetMediaInterface,
           useFactory: (mediaRepository) => new GetMediaService(mediaRepository),
           inject: [MediaDITokens.MediaRepository]
         },
@@ -34,7 +34,7 @@ describe('GetMediaService', () => {
       ]
     }).compile();
   
-    getMediaService = module.get<GetMediaUseCase>(MediaDITokens.GetMediaUseCase);
+    getMediaService = module.get<GetMediaInterface>(MediaDITokens.GetMediaInterface);
     mediaRepository = module.get<MediaRepositoryPort>(MediaDITokens.MediaRepository);
   });
   
@@ -45,12 +45,12 @@ describe('GetMediaService', () => {
       
       jest.spyOn(mediaRepository, 'findMedia').mockImplementation(async () => mockMedia);
       
-      const expectedMediaUseCaseDto: MediaUseCaseDto = await MediaUseCaseDto.newFromMedia(mockMedia);
+      const expectedMediaInterfaceDto: MediaInterfaceDto = MediaInterfaceDto.newFromMedia(mockMedia);
   
-      const getMediaPort: GetMediaPort = {executorId: mockMedia.getOwnerId(), mediaId: mockMedia.getId()};
-      const resultMediaUseCaseDto: MediaUseCaseDto = await getMediaService.execute(getMediaPort);
+      const getMediaDto: GetMediaDto = {executorId: mockMedia.getOwnerId(), mediaId: mockMedia.getId()};
+      const resultMediaInterfaceDto: MediaInterfaceDto = await getMediaService.execute(getMediaDto);
       
-      expect(resultMediaUseCaseDto).toEqual(expectedMediaUseCaseDto);
+      expect(resultMediaInterfaceDto).toEqual(expectedMediaInterfaceDto);
 
     });
   
@@ -60,8 +60,8 @@ describe('GetMediaService', () => {
       expect.hasAssertions();
       
       try {
-        const getMediaPort: GetMediaPort = {executorId: v4(), mediaId: v4()};
-        await getMediaService.execute(getMediaPort);
+        const getMediaDto: GetMediaDto = {executorId: v4(), mediaId: v4()};
+        await getMediaService.execute(getMediaDto);
         
       } catch (e) {
   
@@ -80,8 +80,8 @@ describe('GetMediaService', () => {
       expect.hasAssertions();
     
       try {
-        const getMediaPort: GetMediaPort = {executorId: v4(), mediaId: v4()};
-        await getMediaService.execute(getMediaPort);
+        const getMediaDto: GetMediaDto = {executorId: v4(), mediaId: v4()};
+        await getMediaService.execute(getMediaDto);
       
       } catch (e) {
       

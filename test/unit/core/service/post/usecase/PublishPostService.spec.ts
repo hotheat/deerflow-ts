@@ -6,21 +6,21 @@ import { PostDITokens } from '@core/domain/post/di/PostDITokens';
 import { Post } from '@core/domain/post/entity/Post';
 import { PostOwner } from '@core/domain/post/entity/PostOwner';
 import { PostRepositoryPort } from '@core/domain/post/port/persistence/PostRepositoryPort';
-import { PublishPostPort } from '@core/domain/post/port/usecase/PublishPostPort';
-import { PublishPostUseCase } from '@core/domain/post/usecase/PublishPostUseCase';
-import { PublishPostService } from '@core/service/post/usecase/PublishPostService';
+import { PublishPostDto } from '@core/domain/post/port/dto/PublishPostDto';
+import { PublishPostInterface } from '@core/domain/post/interface/PublishPostInterface';
+import { PublishPostService } from '@core/service/post/service/PublishPostService';
 import { Test, TestingModule } from '@nestjs/testing';
 import { v4 } from 'uuid';
 
 describe('PublishPostService', () => {
-  let publishPostService: PublishPostUseCase;
+  let publishPostService: PublishPostInterface;
   let postRepository: PostRepositoryPort;
   
   beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         {
-          provide: PostDITokens.PublishPostUseCase,
+          provide: PostDITokens.PublishPostInterface,
           useFactory: (postRepository) => new PublishPostService(postRepository),
           inject: [PostDITokens.PostRepository]
         },
@@ -34,7 +34,7 @@ describe('PublishPostService', () => {
       ]
     }).compile();
   
-    publishPostService = module.get<PublishPostUseCase>(PostDITokens.PublishPostUseCase);
+    publishPostService = module.get<PublishPostInterface>(PostDITokens.PublishPostInterface);
     postRepository     = module.get<PostRepositoryPort>(PostDITokens.PostRepository);
   });
   
@@ -50,7 +50,7 @@ describe('PublishPostService', () => {
       
       jest.spyOn(postRepository, 'updatePost').mockClear();
   
-      const publishPostPort: PublishPostPort = {executorId: mockPost.getOwner().getId(), postId: mockPost.getId()};
+      const publishPostPort: PublishPostDto = {executorId: mockPost.getOwner().getId(), postId: mockPost.getId()};
       await publishPostService.execute(publishPostPort);
       
       const publishedPost: Post = jest.spyOn(postRepository, 'updatePost').mock.calls[0][0];
@@ -65,7 +65,7 @@ describe('PublishPostService', () => {
       expect.hasAssertions();
       
       try {
-        const publishPostPort: PublishPostPort = {executorId: v4(), postId: v4()};
+        const publishPostPort: PublishPostDto = {executorId: v4(), postId: v4()};
         await publishPostService.execute(publishPostPort);
         
       } catch (e) {
@@ -86,7 +86,7 @@ describe('PublishPostService', () => {
       expect.hasAssertions();
     
       try {
-        const publishPostPort: PublishPostPort = {executorId: executorId, postId: mockPost.getId()};
+        const publishPostPort: PublishPostDto = {executorId: executorId, postId: mockPost.getId()};
         await publishPostService.execute(publishPostPort);
       
       } catch (e) {

@@ -5,22 +5,22 @@ import { ClassValidationDetails } from '@core/common/util/class-validator/ClassV
 import { UserDITokens } from '@core/domain/user/di/UserDITokens';
 import { User } from '@core/domain/user/entity/User';
 import { UserRepositoryPort } from '@core/domain/user/port/persistence/UserRepositoryPort';
-import { GetUserPort } from '@core/domain/user/port/usecase/GetUserPort';
-import { UserUseCaseDto } from '@core/domain/user/usecase/dto/UserUseCaseDto';
-import { GetUserUseCase } from '@core/domain/user/usecase/GetUserUseCase';
-import { GetUserService } from '@core/service/user/usecase/GetUserService';
+import { GetUserDto } from '@core/domain/user/port/dto/GetUserDto';
+import { UserInterfaceDto } from '@core/domain/user/port/dto/UserInterfaceDto';
+import { GetUserInterface } from '@core/domain/user/interface/GetUserInterface';
+import { GetUserService } from '@core/service/user/service/GetUserService';
 import { Test, TestingModule } from '@nestjs/testing';
 import { v4 } from 'uuid';
 
 describe('GetUserService', () => {
-  let getUserService: GetUserUseCase;
+  let getUserService: GetUserInterface;
   let userRepository: UserRepositoryPort;
   
   beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         {
-          provide: UserDITokens.GetUserUseCase,
+          provide: UserDITokens.GetUserInterface,
           useFactory: (userRepository) => new GetUserService(userRepository),
           inject: [UserDITokens.UserRepository]
         },
@@ -33,7 +33,7 @@ describe('GetUserService', () => {
       ]
     }).compile();
   
-    getUserService = module.get<GetUserUseCase>(UserDITokens.GetUserUseCase);
+    getUserService = module.get<GetUserInterface>(UserDITokens.GetUserInterface);
     userRepository = module.get<UserRepositoryPort>(UserDITokens.UserRepository);
   });
   
@@ -44,12 +44,12 @@ describe('GetUserService', () => {
     
       jest.spyOn(userRepository, 'findUser').mockImplementation(async () => mockUser);
   
-      const expectedUserUseCaseDto: UserUseCaseDto = await UserUseCaseDto.newFromUser(mockUser);
+      const expectedUserInterfaceDto: UserInterfaceDto = UserInterfaceDto.newFromUser(mockUser);
   
-      const getUserPort: GetUserPort = {userId: mockUser.getId()};
-      const resultUserUseCaseDto: UserUseCaseDto = await getUserService.execute(getUserPort);
+      const getUserDto: GetUserDto = {userId: mockUser.getId()};
+      const resultUserInterfaceDto: UserInterfaceDto = await getUserService.execute(getUserDto);
   
-      expect(resultUserUseCaseDto).toEqual(expectedUserUseCaseDto);
+      expect(resultUserInterfaceDto).toEqual(expectedUserInterfaceDto);
     });
   
     test('When user not found, expect it throws Exception', async () => {
@@ -58,8 +58,8 @@ describe('GetUserService', () => {
       expect.hasAssertions();
     
       try {
-        const getUserPort: GetUserPort = {userId: v4()};
-        await getUserService.execute(getUserPort);
+        const getUserDto: GetUserDto = {userId: v4()};
+        await getUserService.execute(getUserDto);
       
       } catch (e) {
       

@@ -1,18 +1,18 @@
-import { TransactionalUseCase } from '@core/common/usecase/TransactionalUseCase';
-import { UseCase } from '@core/common/usecase/UseCase';
+import { TransactionalInterface } from '@core/common/interface/TransactionalInterface';
+import { Interface } from '@core/common/interface/Interface';
 import { PrismaService } from '@infrastructure/adapter/persistence/PrismaService';
 
-export class TransactionalUseCaseWrapper<TUseCasePort, TUseCaseResult> implements UseCase<TUseCasePort, TUseCaseResult> {
+export class TransactionalUseCaseWrapper<TInterfaceDto, TInterfaceResult> implements Interface<TInterfaceDto, TInterfaceResult> {
   
   constructor(
-    private readonly useCase: TransactionalUseCase<TUseCasePort, TUseCaseResult>,
+    private readonly useCase: TransactionalInterface<TInterfaceDto, TInterfaceResult>,
     private readonly prismaService: PrismaService,
   ) {}
   
-  public async execute(port: TUseCasePort): Promise<TUseCaseResult> {
+  public async execute(port: TInterfaceDto): Promise<TInterfaceResult> {
     return this.prismaService.runInTransaction(async () => {
       try {
-        const result: TUseCaseResult = await this.useCase.execute(port);
+        const result: TInterfaceResult = await this.useCase.execute(port);
         
         // Execute commit callback if defined
         await this.useCase.onCommit?.(result, port);

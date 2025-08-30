@@ -3,7 +3,7 @@ import { MediaType } from '@core/common/enums/MediaEnums';
 import { UserRole } from '@core/common/enums/UserEnums';
 import { Media } from '@core/domain/media/entity/Media';
 import { User } from '@core/domain/user/entity/User';
-import { GetMediaAdapter } from '@infrastructure/adapter/usecase/media/GetMediaAdapter';
+import { GetMediaValidator } from '@infrastructure/adapter/validator/media/GetMediaValidator';
 import { FileStorageConfig } from '@infrastructure/config/FileStorageConfig';
 import { HttpStatus } from '@nestjs/common';
 import { TestServer } from '@test/.common/TestServer';
@@ -186,7 +186,7 @@ describe('Media.Get', () => {
         .set('x-api-token', auth.accessToken)
         .expect(HttpStatus.OK);
       
-      expect(response.body.data.context).toBe(GetMediaAdapter.name);
+      expect(response.body.data.context).toBe(GetMediaValidator.name);
       expect(response.body.data.errors.map((error: Record<string, unknown>) => error.property)).toEqual(['mediaId']);
       
       ResponseExpect.codeAndMessage(response.body, {code: Code.USE_CASE_PORT_VALIDATION_ERROR.code, message: Code.USE_CASE_PORT_VALIDATION_ERROR.message});

@@ -1,16 +1,16 @@
 import { UserRole } from '@core/common/enums/UserEnums';
 import { CreateUserEntityPayload } from '@core/domain/user/entity/type/CreateUserEntityPayload';
 import { User } from '@core/domain/user/entity/User';
-import { UserUseCaseDto } from '@core/domain/user/usecase/dto/UserUseCaseDto';
+import { UserInterfaceDto } from '@core/domain/user/port/dto/UserInterfaceDto';
 import { v4 } from 'uuid';
 
-describe('UserUseCaseDto', () => {
+describe('UserInterfaceDto', () => {
 
   describe('newFromUser', () => {
   
-    test('Expect it creates UserUseCaseDto instance with required parameters', async () => {
+    test('Expect it creates UserInterfaceDto instance with required parameters', async () => {
       const user: User = await createUser();
-      const userUseCaseDto: UserUseCaseDto = UserUseCaseDto.newFromUser(user);
+      const userUseCaseDto: UserInterfaceDto = UserInterfaceDto.newFromUser(user);
   
       expect(userUseCaseDto.id).toBe(user.getId());
       expect(userUseCaseDto.firstName).toBe(user.getFirstName());
@@ -23,9 +23,9 @@ describe('UserUseCaseDto', () => {
   
   describe('newListFromUsers', () => {
     
-    test('Expect it creates UserUseCaseDto instances with required parameters', async () => {
+    test('Expect it creates UserInterfaceDto instances with required parameters', async () => {
       const user: User = await createUser();
-      const userUseCaseDtos: UserUseCaseDto[] = UserUseCaseDto.newListFromUsers([user]);
+      const userUseCaseDtos: UserInterfaceDto[] = UserInterfaceDto.newListFromUsers([user]);
   
       expect(userUseCaseDtos.length).toBe(1);
       expect(userUseCaseDtos[0].id).toBe(user.getId());

@@ -32,6 +32,11 @@
     "@typescript-eslint/no-inferrable-types": "off",
     "@typescript-eslint/no-non-null-assertion": "error",
     "@typescript-eslint/no-explicit-any": "error",
+    "@typescript-eslint/ban-types": ["error", {
+      "types": {
+        "unknown": "Avoid using 'unknown' type. Use more specific types instead."
+      }
+    }],
     "@typescript-eslint/semi": ["error", "always"]
   },
   "overrides": [
@@ -39,7 +44,8 @@
       "files": ["test/**/*"],
       "rules": {
         "@typescript-eslint/no-non-null-assertion": "off",
-        "@typescript-eslint/no-explicit-any": "off"
+        "@typescript-eslint/no-explicit-any": "off",
+        "@typescript-eslint/ban-types": "off"
       }
     }
   ]

@@ -5,7 +5,7 @@ import { Optional } from '@core/common/type/CommonTypes';
 import { UserDITokens } from '@core/domain/user/di/UserDITokens';
 import { User } from '@core/domain/user/entity/User';
 import { UserRepositoryPort } from '@core/domain/user/port/persistence/UserRepositoryPort';
-import { CreateUserAdapter } from '@infrastructure/adapter/usecase/user/CreateUserAdapter';
+import { CreateUserValidator } from '@infrastructure/adapter/validator/user/CreateUserValidator';
 import { HttpStatus } from '@nestjs/common';
 import { TestServer } from '@test/.common/TestServer';
 import { AuthExpect } from '@test/e2e/expect/AuthExpect';
@@ -81,7 +81,7 @@ describe('User', () => {
         .send(body)
         .expect(HttpStatus.OK);
     
-      expect(response.body.data.context).toBe(CreateUserAdapter.name);
+      expect(response.body.data.context).toBe(CreateUserValidator.name);
       expect(response.body.data.errors.map((error: Record<string, unknown>) => error.property)).toEqual(['firstName', 'lastName', 'email', 'role', 'password']);
   
       ResponseExpect.codeAndMessage(response.body, {code: Code.USE_CASE_PORT_VALIDATION_ERROR.code, message: Code.USE_CASE_PORT_VALIDATION_ERROR.message});

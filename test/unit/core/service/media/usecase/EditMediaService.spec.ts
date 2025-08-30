@@ -5,23 +5,23 @@ import { ClassValidationDetails } from '@core/common/util/class-validator/ClassV
 import { MediaDITokens } from '@core/domain/media/di/MediaDITokens';
 import { Media } from '@core/domain/media/entity/Media';
 import { MediaRepositoryPort } from '@core/domain/media/port/persistence/MediaRepositoryPort';
-import { EditMediaPort } from '@core/domain/media/port/usecase/EditMediaPort';
-import { MediaUseCaseDto } from '@core/domain/media/usecase/dto/MediaUseCaseDto';
-import { EditMediaUseCase } from '@core/domain/media/usecase/EditMediaUseCase';
+import { EditMediaDto } from '@core/domain/media/port/dto/EditMediaDto';
+import { MediaInterfaceDto } from '@core/domain/media/port/dto/MediaInterfaceDto';
+import { EditMediaInterface } from '@core/domain/media/interface/EditMediaInterface';
 import { FileMetadata } from '@core/domain/media/value-object/FileMetadata';
-import { EditMediaService } from '@core/service/media/usecase/EditMediaService';
+import { EditMediaService } from '@core/service/media/service/EditMediaService';
 import { Test, TestingModule } from '@nestjs/testing';
 import { v4 } from 'uuid';
 
 describe('EditMediaService', () => {
-  let editMediaService: EditMediaUseCase;
+  let editMediaService: EditMediaInterface;
   let mediaRepository: MediaRepositoryPort;
   
   beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         {
-          provide: MediaDITokens.EditMediaUseCase,
+          provide: MediaDITokens.EditMediaInterface,
           useFactory: (mediaRepository) => new EditMediaService(mediaRepository),
           inject: [MediaDITokens.MediaRepository]
         },
@@ -35,7 +35,7 @@ describe('EditMediaService', () => {
       ]
     }).compile();
   
-    editMediaService = module.get<EditMediaUseCase>(MediaDITokens.EditMediaUseCase);
+    editMediaService = module.get<EditMediaInterface>(MediaDITokens.EditMediaInterface);
     mediaRepository  = module.get<MediaRepositoryPort>(MediaDITokens.MediaRepository);
   });
   
@@ -49,7 +49,7 @@ describe('EditMediaService', () => {
       
       jest.spyOn(mediaRepository, 'updateMedia').mockClear();
   
-      const editMediaPort: EditMediaPort = {
+      const editMediaDto: EditMediaDto = {
         executorId: mockMedia.getOwnerId(),
         mediaId   : mockMedia.getId(),
         name      : 'New Name',
@@ -64,14 +64,14 @@ describe('EditMediaService', () => {
         createdAt: mockMedia.getCreatedAt(),
       });
   
-      const expectedMediaUseCaseDto: MediaUseCaseDto = await MediaUseCaseDto.newFromMedia(expectedMedia);
+      const expectedMediaInterfaceDto: MediaInterfaceDto = MediaInterfaceDto.newFromMedia(expectedMedia);
       
-      const resultMediaUseCaseDto: MediaUseCaseDto = await editMediaService.execute(editMediaPort);
+      const resultMediaInterfaceDto: MediaInterfaceDto = await editMediaService.execute(editMediaDto);
       const resultUpdatedMedia: Media = jest.spyOn(mediaRepository, 'updateMedia').mock.calls[0][0];
   
-      expect(resultMediaUseCaseDto.editedAt).toBeGreaterThanOrEqual(mockMedia.getEditedAt()!.getTime());
+      expect(resultMediaInterfaceDto.editedAt).toBeGreaterThanOrEqual(mockMedia.getEditedAt()!.getTime());
       
-      expect(resultMediaUseCaseDto).toEqual({...expectedMediaUseCaseDto, editedAt: resultMediaUseCaseDto.editedAt});
+      expect(resultMediaInterfaceDto).toEqual({...expectedMediaInterfaceDto, editedAt: resultMediaInterfaceDto.editedAt});
       expect(resultUpdatedMedia).toEqual({...expectedMedia, editedAt: resultUpdatedMedia.getEditedAt()});
     });
   
@@ -81,8 +81,8 @@ describe('EditMediaService', () => {
       expect.hasAssertions();
       
       try {
-        const editMediaPort: EditMediaPort = {executorId: v4(), mediaId: v4(), name: v4()};
-        await editMediaService.execute(editMediaPort);
+        const editMediaDto: EditMediaDto = {executorId: v4(), mediaId: v4(), name: v4()};
+        await editMediaService.execute(editMediaDto);
         
       } catch (e) {
   
@@ -102,8 +102,8 @@ describe('EditMediaService', () => {
       expect.hasAssertions();
     
       try {
-        const editMediaPort: EditMediaPort = {executorId: executorId, mediaId: mockMedia.getId(), name: v4()};
-        await editMediaService.execute(editMediaPort);
+        const editMediaDto: EditMediaDto = {executorId: executorId, mediaId: mockMedia.getId(), name: v4()};
+        await editMediaService.execute(editMediaDto);
       
       } catch (e) {
       

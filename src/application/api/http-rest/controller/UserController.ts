@@ -6,11 +6,11 @@ import { HttpRestApiResponseUser } from '@application/api/http-rest/controller/d
 import { CoreApiResponse } from '@core/common/api/CoreApiResponse';
 import { UserRole } from '@core/common/enums/UserEnums';
 import { UserDITokens } from '@core/domain/user/di/UserDITokens';
-import { CreateUserUseCase } from '@core/domain/user/usecase/CreateUserUseCase';
-import { UserUseCaseDto } from '@core/domain/user/usecase/dto/UserUseCaseDto';
-import { GetUserUseCase } from '@core/domain/user/usecase/GetUserUseCase';
-import { CreateUserAdapter } from '@infrastructure/adapter/usecase/user/CreateUserAdapter';
-import { GetUserAdapter } from '@infrastructure/adapter/usecase/user/GetUserAdapter';
+import { CreateUserInterface } from '@core/domain/user/interface/CreateUserInterface';
+import { UserInterfaceDto } from '@core/domain/user/port/dto/UserInterfaceDto';
+import { GetUserInterface } from '@core/domain/user/interface/GetUserInterface';
+import { CreateUserValidator } from '@infrastructure/adapter/validator/user/CreateUserValidator';
+import { GetUserValidator } from '@infrastructure/adapter/validator/user/GetUserValidator';
 import { Body, Controller, Get, HttpCode, HttpStatus, Inject, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiResponse, ApiTags } from '@nestjs/swagger';
 
@@ -19,11 +19,11 @@ import { ApiBearerAuth, ApiBody, ApiResponse, ApiTags } from '@nestjs/swagger';
 export class UserController {
   
   constructor(
-    @Inject(UserDITokens.CreateUserUseCase)
-    private readonly createUserUseCase: CreateUserUseCase,
+    @Inject(UserDITokens.CreateUserInterface)
+    private readonly createUserInterface: CreateUserInterface,
     
-    @Inject(UserDITokens.GetUserUseCase)
-    private readonly getUserUseCase: GetUserUseCase,
+    @Inject(UserDITokens.GetUserInterface)
+    private readonly getUserInterface: GetUserInterface,
   ) {}
   
   @Post('account')
@@ -31,8 +31,8 @@ export class UserController {
   @ApiBearerAuth()
   @ApiBody({type: HttpRestApiModelCreateUserBody})
   @ApiResponse({status: HttpStatus.OK, type: HttpRestApiResponseUser})
-  public async createAccount(@Body() body: HttpRestApiModelCreateUserBody): Promise<CoreApiResponse<UserUseCaseDto>> {
-    const adapter: CreateUserAdapter = await CreateUserAdapter.new({
+  public async createAccount(@Body() body: HttpRestApiModelCreateUserBody): Promise<CoreApiResponse<UserInterfaceDto>> {
+    const adapter: CreateUserValidator = await CreateUserValidator.new({
       firstName  : body.firstName,
       lastName   : body.lastName,
       email      : body.email,
@@ -40,7 +40,7 @@ export class UserController {
       password   : body.password
     });
     
-    const createdUser: UserUseCaseDto = await this.createUserUseCase.execute(adapter);
+    const createdUser: UserInterfaceDto = await this.createUserInterface.execute(adapter);
     
     return CoreApiResponse.success(createdUser);
   }
@@ -50,9 +50,9 @@ export class UserController {
   @ApiBearerAuth()
   @HttpAuth(UserRole.AUTHOR, UserRole.ADMIN, UserRole.GUEST)
   @ApiResponse({status: HttpStatus.OK, type: HttpRestApiResponseUser})
-  public async getMe(@HttpUser() httpUser: HttpUserPayload): Promise<CoreApiResponse<UserUseCaseDto>> {
-    const adapter: GetUserAdapter = await GetUserAdapter.new({userId: httpUser.id});
-    const user: UserUseCaseDto = await this.getUserUseCase.execute(adapter);
+  public async getMe(@HttpUser() httpUser: HttpUserPayload): Promise<CoreApiResponse<UserInterfaceDto>> {
+    const adapter: GetUserValidator = await GetUserValidator.new({userId: httpUser.id});
+    const user: UserInterfaceDto = await this.getUserInterface.execute(adapter);
     
     return CoreApiResponse.success(user);
   }

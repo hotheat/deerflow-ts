@@ -6,21 +6,21 @@ import { PostDITokens } from '@core/domain/post/di/PostDITokens';
 import { Post } from '@core/domain/post/entity/Post';
 import { PostOwner } from '@core/domain/post/entity/PostOwner';
 import { PostRepositoryPort } from '@core/domain/post/port/persistence/PostRepositoryPort';
-import { RemovePostPort } from '@core/domain/post/port/usecase/RemovePostPort';
-import { RemovePostUseCase } from '@core/domain/post/usecase/RemovePostUseCase';
-import { RemovePostService } from '@core/service/post/usecase/RemovePostService';
+import { RemovePostDto } from '@core/domain/post/port/dto/RemovePostDto';
+import { RemovePostInterface } from '@core/domain/post/interface/RemovePostInterface';
+import { RemovePostService } from '@core/service/post/service/RemovePostService';
 import { Test, TestingModule } from '@nestjs/testing';
 import { v4 } from 'uuid';
 
 describe('RemovePostService', () => {
-  let removePostService: RemovePostUseCase;
+  let removePostService: RemovePostInterface;
   let postRepository: PostRepositoryPort;
   
   beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         {
-          provide: PostDITokens.RemovePostUseCase,
+          provide: PostDITokens.RemovePostInterface,
           useFactory: (postRepository) => new RemovePostService(postRepository),
           inject: [PostDITokens.PostRepository]
         },
@@ -34,7 +34,7 @@ describe('RemovePostService', () => {
       ]
     }).compile();
   
-    removePostService = module.get<RemovePostUseCase>(PostDITokens.RemovePostUseCase);
+    removePostService = module.get<RemovePostInterface>(PostDITokens.RemovePostInterface);
     postRepository    = module.get<PostRepositoryPort>(PostDITokens.PostRepository);
   });
   
@@ -48,8 +48,8 @@ describe('RemovePostService', () => {
       
       jest.spyOn(postRepository, 'removePost').mockClear();
   
-      const removePostPort: RemovePostPort = {executorId: mockPost.getOwner().getId(), postId: mockPost.getId()};
-      await removePostService.execute(removePostPort);
+      const removePostDto: RemovePostDto = {executorId: mockPost.getOwner().getId(), postId: mockPost.getId()};
+      await removePostService.execute(removePostDto);
       
       const removedPost: Post = jest.spyOn(postRepository, 'removePost').mock.calls[0][0];
       
@@ -62,8 +62,8 @@ describe('RemovePostService', () => {
       expect.hasAssertions();
       
       try {
-        const removePostPort: RemovePostPort = {executorId: v4(), postId: v4()};
-        await removePostService.execute(removePostPort);
+        const removePostDto: RemovePostDto = {executorId: v4(), postId: v4()};
+        await removePostService.execute(removePostDto);
         
       } catch (e) {
   
@@ -83,8 +83,8 @@ describe('RemovePostService', () => {
       expect.hasAssertions();
     
       try {
-        const removePostPort: RemovePostPort = {executorId: executorId, postId: mockPost.getId()};
-        await removePostService.execute(removePostPort);
+        const removePostDto: RemovePostDto = {executorId: executorId, postId: mockPost.getId()};
+        await removePostService.execute(removePostDto);
       
       } catch (e) {
       

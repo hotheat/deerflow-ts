@@ -12,18 +12,18 @@ import { Post } from '@core/domain/post/entity/Post';
 import { PostImage } from '@core/domain/post/entity/PostImage';
 import { PostOwner } from '@core/domain/post/entity/PostOwner';
 import { PostRepositoryPort } from '@core/domain/post/port/persistence/PostRepositoryPort';
-import { CreatePostPort } from '@core/domain/post/port/usecase/CreatePostPort';
-import { CreatePostUseCase } from '@core/domain/post/usecase/CreatePostUseCase';
-import { PostUseCaseDto } from '@core/domain/post/usecase/dto/PostUseCaseDto';
+import { CreatePostDto } from '@core/domain/post/port/dto/CreatePostDto';
+import { CreatePostInterface } from '@core/domain/post/interface/CreatePostInterface';
+import { PostInterfaceDto } from '@core/domain/post/port/dto/PostInterfaceDto';
 import { User } from '@core/domain/user/entity/User';
 import { UserDITokens } from '@core/domain/user/di/UserDITokens';
 import { UserRepositoryPort } from '@core/domain/user/port/persistence/UserRepositoryPort';
-import { CreatePostService } from '@core/service/post/usecase/CreatePostService';
+import { CreatePostService } from '@core/service/post/service/CreatePostService';
 import { Test, TestingModule } from '@nestjs/testing';
 import { v4 } from 'uuid';
 
 describe('CreatePostService', () => {
-  let createPostService: CreatePostUseCase;
+  let createPostService: CreatePostInterface;
   let postRepository: PostRepositoryPort;
   let userRepository: UserRepositoryPort;
   let mediaRepository: MediaRepositoryPort;
@@ -32,7 +32,7 @@ describe('CreatePostService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         {
-          provide: PostDITokens.CreatePostUseCase,
+          provide: PostDITokens.CreatePostInterface,
           useFactory: (postRepository, userRepository, mediaRepository) => new CreatePostService(postRepository, userRepository, mediaRepository),
           inject: [PostDITokens.PostRepository, UserDITokens.UserRepository, MediaDITokens.MediaRepository]
         },
@@ -57,7 +57,7 @@ describe('CreatePostService', () => {
       ]
     }).compile();
   
-    createPostService = module.get<CreatePostUseCase>(PostDITokens.CreatePostUseCase);
+    createPostService = module.get<CreatePostInterface>(PostDITokens.CreatePostInterface);
     postRepository = module.get<PostRepositoryPort>(PostDITokens.PostRepository);
     userRepository = module.get<UserRepositoryPort>(UserDITokens.UserRepository);
     mediaRepository = module.get<MediaRepositoryPort>(MediaDITokens.MediaRepository);
@@ -74,7 +74,7 @@ describe('CreatePostService', () => {
       jest.spyOn(mediaRepository, 'findMedia').mockResolvedValueOnce(mockMedia);
       jest.spyOn(postRepository, 'addPost').mockResolvedValueOnce({id: mockPostId});
   
-      const createPostPort: CreatePostPort = {
+      const createPostPort: CreatePostDto = {
         executorId: mockUser.getId(),
         title     : v4(),
         imageId   : mockMedia.getId(),
@@ -87,17 +87,17 @@ describe('CreatePostService', () => {
         image: await createPostImage(mockMedia.getId(), mockMedia.getMetadata().relativePath),
       });
   
-      const expectedPostUseCaseDto: PostUseCaseDto = await PostUseCaseDto.newFromPost(expectedPost);
+      const expectedPostInterfaceDto: PostInterfaceDto = await PostInterfaceDto.newFromPost(expectedPost);
       
-      const resultPostUseCaseDto: PostUseCaseDto = await createPostService.execute(createPostPort);
-      Reflect.set(resultPostUseCaseDto, 'id', expectedPostUseCaseDto.id);
-      Reflect.set(resultPostUseCaseDto, 'createdAt', expectedPostUseCaseDto.createdAt);
+      const resultPostInterfaceDto: PostInterfaceDto = await createPostService.execute(createPostPort);
+      Reflect.set(resultPostInterfaceDto, 'id', expectedPostInterfaceDto.id);
+      Reflect.set(resultPostInterfaceDto, 'createdAt', expectedPostInterfaceDto.createdAt);
       
       const resultAddedPost: Post = jest.spyOn(postRepository, 'addPost').mock.calls[0][0];
       Reflect.set(resultAddedPost, 'id', expectedPost.getId());
       Reflect.set(resultAddedPost, 'createdAt', expectedPost.getCreatedAt());
       
-      expect(resultPostUseCaseDto).toEqual(expectedPostUseCaseDto);
+      expect(resultPostInterfaceDto).toEqual(expectedPostInterfaceDto);
       expect(resultAddedPost).toEqual(expectedPost);
     });
   
@@ -107,7 +107,7 @@ describe('CreatePostService', () => {
       expect.hasAssertions();
   
       try {
-        const createPostPort: CreatePostPort = {executorId: v4(), title: v4()};
+        const createPostPort: CreatePostDto = {executorId: v4(), title: v4()};
         await createPostService.execute(createPostPort);
     
       } catch (e) {
@@ -129,7 +129,7 @@ describe('CreatePostService', () => {
       expect.hasAssertions();
     
       try {
-        const createPostPort: CreatePostPort = {executorId: mockUser.getId(), title: v4(), imageId: v4()};
+        const createPostPort: CreatePostDto = {executorId: mockUser.getId(), title: v4(), imageId: v4()};
         await createPostService.execute(createPostPort);
       
       } catch (e) {
@@ -152,7 +152,7 @@ describe('CreatePostService', () => {
       expect.hasAssertions();
     
       try {
-        const createPostPort: CreatePostPort = {executorId: v4(), title: v4(), imageId: mockMedia.getId()};
+        const createPostPort: CreatePostDto = {executorId: v4(), title: v4(), imageId: mockMedia.getId()};
         await createPostService.execute(createPostPort);
       
       } catch (e) {

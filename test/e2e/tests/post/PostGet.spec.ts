@@ -3,7 +3,7 @@ import { PostStatus } from '@core/common/enums/PostEnums';
 import { UserRole } from '@core/common/enums/UserEnums';
 import { Post } from '@core/domain/post/entity/Post';
 import { User } from '@core/domain/user/entity/User';
-import { GetPostAdapter } from '@infrastructure/adapter/usecase/post/GetPostAdapter';
+import { GetPostValidator } from '@infrastructure/adapter/validator/post/GetPostValidator';
 import { HttpStatus } from '@nestjs/common';
 import { TestServer } from '@test/.common/TestServer';
 import { AuthExpect } from '@test/e2e/expect/AuthExpect';
@@ -254,7 +254,7 @@ describe('Post.Get', () => {
         .set('x-api-token', auth.accessToken)
         .expect(HttpStatus.OK);
       
-      expect(response.body.data.context).toBe(GetPostAdapter.name);
+      expect(response.body.data.context).toBe(GetPostValidator.name);
       expect(response.body.data.errors.map((error: Record<string, unknown>) => error.property)).toEqual(['postId']);
       
       ResponseExpect.codeAndMessage(response.body, {code: Code.USE_CASE_PORT_VALIDATION_ERROR.code, message: Code.USE_CASE_PORT_VALIDATION_ERROR.message});

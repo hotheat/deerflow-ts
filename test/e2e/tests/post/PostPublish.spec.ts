@@ -6,7 +6,7 @@ import { PostDITokens } from '@core/domain/post/di/PostDITokens';
 import { Post } from '@core/domain/post/entity/Post';
 import { PostRepositoryPort } from '@core/domain/post/port/persistence/PostRepositoryPort';
 import { User } from '@core/domain/user/entity/User';
-import { PublishPostAdapter } from '@infrastructure/adapter/usecase/post/PublishPostAdapter';
+import { PublishPostValidator } from '@infrastructure/adapter/validator/post/PublishPostValidator';
 import { HttpStatus } from '@nestjs/common';
 import { TestServer } from '@test/.common/TestServer';
 import { AuthExpect } from '@test/e2e/expect/AuthExpect';
@@ -102,7 +102,7 @@ describe('Post.Publish', () => {
         .set('x-api-token', accessToken)
         .expect(HttpStatus.OK);
     
-      expect(response.body.data.context).toBe(PublishPostAdapter.name);
+      expect(response.body.data.context).toBe(PublishPostValidator.name);
       expect(response.body.data.errors.map((error: Record<string, unknown>) => error.property)).toEqual(['postId']);
     
       ResponseExpect.codeAndMessage(response.body, {

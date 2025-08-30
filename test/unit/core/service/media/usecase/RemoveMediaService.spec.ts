@@ -5,17 +5,17 @@ import { ClassValidationDetails } from '@core/common/util/class-validator/ClassV
 import { MediaDITokens } from '@core/domain/media/di/MediaDITokens';
 import { Media } from '@core/domain/media/entity/Media';
 import { MediaRepositoryPort } from '@core/domain/media/port/persistence/MediaRepositoryPort';
-import { RemoveMediaPort } from '@core/domain/media/port/usecase/RemoveMediaPort';
-import { RemoveMediaUseCase } from '@core/domain/media/usecase/RemoveMediaUseCase';
+import { RemoveMediaDto } from '@core/domain/media/port/dto/RemoveMediaDto';
+import { RemoveMediaInterface } from '@core/domain/media/interface/RemoveMediaInterface';
 import { FileMetadata } from '@core/domain/media/value-object/FileMetadata';
 import { PostDITokens } from '@core/domain/post/di/PostDITokens';
 import { PostRepositoryPort } from '@core/domain/post/port/persistence/PostRepositoryPort';
-import { RemoveMediaService } from '@core/service/media/usecase/RemoveMediaService';
+import { RemoveMediaService } from '@core/service/media/service/RemoveMediaService';
 import { Test, TestingModule } from '@nestjs/testing';
 import { v4 } from 'uuid';
 
 describe('RemoveMediaService', () => {
-  let removeMediaService: RemoveMediaUseCase;
+  let removeMediaService: RemoveMediaInterface;
   let mediaRepository: MediaRepositoryPort;
   let postRepository: PostRepositoryPort;
   
@@ -23,7 +23,7 @@ describe('RemoveMediaService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         {
-          provide: MediaDITokens.RemoveMediaUseCase,
+          provide: MediaDITokens.RemoveMediaInterface,
           useFactory: (mediaRepository, postRepository) => new RemoveMediaService(mediaRepository, postRepository),
           inject: [MediaDITokens.MediaRepository, PostDITokens.PostRepository]
         },
@@ -43,7 +43,7 @@ describe('RemoveMediaService', () => {
       ]
     }).compile();
   
-    removeMediaService = module.get<RemoveMediaUseCase>(MediaDITokens.RemoveMediaUseCase);
+    removeMediaService = module.get<RemoveMediaInterface>(MediaDITokens.RemoveMediaInterface);
     mediaRepository = module.get<MediaRepositoryPort>(MediaDITokens.MediaRepository);
     postRepository = module.get<PostRepositoryPort>(PostDITokens.PostRepository);
   });
@@ -60,15 +60,15 @@ describe('RemoveMediaService', () => {
       jest.spyOn(mediaRepository, 'removeMedia').mockClear();
       jest.spyOn(postRepository, 'updatePosts').mockClear();
   
-      const removeMediaPort: RemoveMediaPort = {
+      const removeMediaDto: RemoveMediaDto = {
         executorId: mockMedia.getOwnerId(),
         mediaId   : mockMedia.getId(),
       };
       
-      await removeMediaService.execute(removeMediaPort);
+      await removeMediaService.execute(removeMediaDto);
       
       const removedMedia: Media = jest.spyOn(mediaRepository, 'removeMedia').mock.calls[0][0];
-      const updatePostsCall = jest.spyOn(postRepository, 'updatePosts').mock.calls[0];
+      const updatePostsCall: unknown[] = jest.spyOn(postRepository, 'updatePosts').mock.calls[0];
       
       expect(removedMedia).toEqual(mockMedia);
       expect(updatePostsCall[0]).toEqual({imageId: null});
@@ -82,8 +82,8 @@ describe('RemoveMediaService', () => {
       expect.hasAssertions();
       
       try {
-        const removeMediaPort: RemoveMediaPort = {executorId: v4(), mediaId: v4()};
-        await removeMediaService.execute(removeMediaPort);
+        const removeMediaDto: RemoveMediaDto = {executorId: v4(), mediaId: v4()};
+        await removeMediaService.execute(removeMediaDto);
         
       } catch (e) {
   
@@ -103,8 +103,8 @@ describe('RemoveMediaService', () => {
       expect.hasAssertions();
     
       try {
-        const removeMediaPort: RemoveMediaPort = {executorId: executorId, mediaId: mockMedia.getId()};
-        await removeMediaService.execute(removeMediaPort);
+        const removeMediaDto: RemoveMediaDto = {executorId: executorId, mediaId: mockMedia.getId()};
+        await removeMediaService.execute(removeMediaDto);
       
       } catch (e) {
       

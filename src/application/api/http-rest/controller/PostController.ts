@@ -10,19 +10,19 @@ import { CoreApiResponse } from '@core/common/api/CoreApiResponse';
 import { PostStatus } from '@core/common/enums/PostEnums';
 import { UserRole } from '@core/common/enums/UserEnums';
 import { PostDITokens } from '@core/domain/post/di/PostDITokens';
-import { CreatePostUseCase } from '@core/domain/post/usecase/CreatePostUseCase';
-import { PostUseCaseDto } from '@core/domain/post/usecase/dto/PostUseCaseDto';
-import { EditPostUseCase } from '@core/domain/post/usecase/EditPostUseCase';
-import { GetPostListUseCase } from '@core/domain/post/usecase/GetPostListUseCase';
-import { GetPostUseCase } from '@core/domain/post/usecase/GetPostUseCase';
-import { PublishPostUseCase } from '@core/domain/post/usecase/PublishPostUseCase';
-import { RemovePostUseCase } from '@core/domain/post/usecase/RemovePostUseCase';
-import { CreatePostAdapter } from '@infrastructure/adapter/usecase/post/CreatePostAdapter';
-import { EditPostAdapter } from '@infrastructure/adapter/usecase/post/EditPostAdapter';
-import { GetPostAdapter } from '@infrastructure/adapter/usecase/post/GetPostAdapter';
-import { GetPostListAdapter } from '@infrastructure/adapter/usecase/post/GetPostListAdapter';
-import { PublishPostAdapter } from '@infrastructure/adapter/usecase/post/PublishPostAdapter';
-import { RemovePostAdapter } from '@infrastructure/adapter/usecase/post/RemovePostAdapter';
+import { CreatePostInterface } from '@core/domain/post/interface/CreatePostInterface';
+import { PostInterfaceDto } from '@core/domain/post/port/dto/PostInterfaceDto';
+import { EditPostInterface } from '@core/domain/post/interface/EditPostInterface';
+import { GetPostListInterface } from '@core/domain/post/interface/GetPostListInterface';
+import { GetPostInterface } from '@core/domain/post/interface/GetPostInterface';
+import { PublishPostInterface } from '@core/domain/post/interface/PublishPostInterface';
+import { RemovePostInterface } from '@core/domain/post/interface/RemovePostInterface';
+import { CreatePostValidator } from '@infrastructure/adapter/validator/post/CreatePostValidator';
+import { EditPostValidator } from '@infrastructure/adapter/validator/post/EditPostValidator';
+import { GetPostValidator } from '@infrastructure/adapter/validator/post/GetPostValidator';
+import { GetPostListValidator } from '@infrastructure/adapter/validator/post/GetPostListValidator';
+import { PublishPostValidator } from '@infrastructure/adapter/validator/post/PublishPostValidator';
+import { RemovePostValidator } from '@infrastructure/adapter/validator/post/RemovePostValidator';
 import { FileStorageConfig } from '@infrastructure/config/FileStorageConfig';
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Inject, Param, Post, Put, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
@@ -33,23 +33,23 @@ import { resolve } from 'url';
 export class PostController {
   
   constructor(
-    @Inject(PostDITokens.CreatePostUseCase)
-    private readonly createPostUseCase: CreatePostUseCase,
+    @Inject(PostDITokens.CreatePostInterface)
+    private readonly createPostInterface: CreatePostInterface,
 
-    @Inject(PostDITokens.EditPostUseCase)
-    private readonly editPostUseCase: EditPostUseCase,
+    @Inject(PostDITokens.EditPostInterface)
+    private readonly editPostInterface: EditPostInterface,
 
-    @Inject(PostDITokens.GetPostListUseCase)
-    private readonly getPostListUseCase: GetPostListUseCase,
+    @Inject(PostDITokens.GetPostListInterface)
+    private readonly getPostListInterface: GetPostListInterface,
 
-    @Inject(PostDITokens.GetPostUseCase)
-    private readonly getPostUseCase: GetPostUseCase,
+    @Inject(PostDITokens.GetPostInterface)
+    private readonly getPostInterface: GetPostInterface,
 
-    @Inject(PostDITokens.PublishPostUseCase)
-    private readonly publishPostUseCase: PublishPostUseCase,
+    @Inject(PostDITokens.PublishPostInterface)
+    private readonly publishPostInterface: PublishPostInterface,
 
-    @Inject(PostDITokens.RemovePostUseCase)
-    private readonly removePostUseCase: RemovePostUseCase,
+    @Inject(PostDITokens.RemovePostInterface)
+    private readonly removePostInterface: RemovePostInterface,
   ) {}
   
   @Post()
@@ -58,15 +58,15 @@ export class PostController {
   @ApiBearerAuth()
   @ApiBody({type: HttpRestApiModelCreatePostBody})
   @ApiResponse({status: HttpStatus.OK, type: HttpRestApiResponsePost})
-  public async createPost(@HttpUser() user: HttpUserPayload, @Body() body: HttpRestApiModelCreatePostBody): Promise<CoreApiResponse<PostUseCaseDto>> {
-    const adapter: CreatePostAdapter = await CreatePostAdapter.new({
+  public async createPost(@HttpUser() user: HttpUserPayload, @Body() body: HttpRestApiModelCreatePostBody): Promise<CoreApiResponse<PostInterfaceDto>> {
+    const adapter: CreatePostValidator = await CreatePostValidator.new({
       executorId: user.id,
       title     : body.title,
       imageId   : body.imageId,
       content   : body.content,
     });
     
-    const createdPost: PostUseCaseDto = await this.createPostUseCase.execute(adapter);
+    const createdPost: PostInterfaceDto = await this.createPostInterface.execute(adapter);
     this.setFileStorageBasePath([createdPost]);
     
     return CoreApiResponse.success(createdPost);
@@ -83,9 +83,9 @@ export class PostController {
     @Body() body: HttpRestApiModelCreatePostBody,
     @Param('postId') postId: string
     
-  ): Promise<CoreApiResponse<PostUseCaseDto>> {
+  ): Promise<CoreApiResponse<PostInterfaceDto>> {
     
-    const adapter: EditPostAdapter = await EditPostAdapter.new({
+    const adapter: EditPostValidator = await EditPostValidator.new({
       executorId: user.id,
       postId    : postId,
       title     : body.title,
@@ -93,7 +93,7 @@ export class PostController {
       imageId   : body.imageId,
     });
     
-    const editedPost: PostUseCaseDto = await this.editPostUseCase.execute(adapter);
+    const editedPost: PostInterfaceDto = await this.editPostInterface.execute(adapter);
     this.setFileStorageBasePath([editedPost]);
     
     return CoreApiResponse.success(editedPost);
@@ -109,14 +109,14 @@ export class PostController {
     @HttpUser() user: HttpUserPayload,
     @Query() query: HttpRestApiModelGetPostListQuery
     
-  ): Promise<CoreApiResponse<PostUseCaseDto[]>> {
+  ): Promise<CoreApiResponse<PostInterfaceDto[]>> {
     
-    const adapter: GetPostListAdapter = await GetPostListAdapter.new({
+    const adapter: GetPostListValidator = await GetPostListValidator.new({
       executorId: user.id,
       ownerId: query.authorId,
       status: PostStatus.PUBLISHED
     });
-    const posts: PostUseCaseDto[] = await this.getPostListUseCase.execute(adapter);
+    const posts: PostInterfaceDto[] = await this.getPostListInterface.execute(adapter);
     this.setFileStorageBasePath(posts);
     
     return CoreApiResponse.success(posts);
@@ -127,12 +127,12 @@ export class PostController {
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiResponse({status: HttpStatus.OK, type: HttpRestApiResponsePostList})
-  public async getMinePostList(@HttpUser() user: HttpUserPayload): Promise<CoreApiResponse<PostUseCaseDto[]>> {
-    const adapter: GetPostListAdapter = await GetPostListAdapter.new({
+  public async getMinePostList(@HttpUser() user: HttpUserPayload): Promise<CoreApiResponse<PostInterfaceDto[]>> {
+    const adapter: GetPostListValidator = await GetPostListValidator.new({
       executorId: user.id,
       ownerId: user.id,
     });
-    const posts: PostUseCaseDto[] = await this.getPostListUseCase.execute(adapter);
+    const posts: PostInterfaceDto[] = await this.getPostListInterface.execute(adapter);
     this.setFileStorageBasePath(posts);
     
     return CoreApiResponse.success(posts);
@@ -143,9 +143,9 @@ export class PostController {
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiResponse({status: HttpStatus.OK, type: HttpRestApiResponsePostList})
-  public async getPost(@HttpUser() user: HttpUserPayload, @Param('postId') postId: string): Promise<CoreApiResponse<PostUseCaseDto>> {
-    const adapter: GetPostAdapter = await GetPostAdapter.new({executorId: user.id, postId: postId});
-    const post: PostUseCaseDto = await this.getPostUseCase.execute(adapter);
+  public async getPost(@HttpUser() user: HttpUserPayload, @Param('postId') postId: string): Promise<CoreApiResponse<PostInterfaceDto>> {
+    const adapter: GetPostValidator = await GetPostValidator.new({executorId: user.id, postId: postId});
+    const post: PostInterfaceDto = await this.getPostInterface.execute(adapter);
     this.setFileStorageBasePath([post]);
     
     return CoreApiResponse.success(post);
@@ -156,9 +156,9 @@ export class PostController {
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiResponse({status: HttpStatus.OK, type: HttpRestApiResponsePostList})
-  public async publishPost(@HttpUser() user: HttpUserPayload, @Param('postId') postId: string): Promise<CoreApiResponse<PostUseCaseDto>> {
-    const adapter: PublishPostAdapter = await PublishPostAdapter.new({executorId: user.id, postId: postId});
-    const post: PostUseCaseDto = await this.publishPostUseCase.execute(adapter);
+  public async publishPost(@HttpUser() user: HttpUserPayload, @Param('postId') postId: string): Promise<CoreApiResponse<PostInterfaceDto>> {
+    const adapter: PublishPostValidator = await PublishPostValidator.new({executorId: user.id, postId: postId});
+    const post: PostInterfaceDto = await this.publishPostInterface.execute(adapter);
     this.setFileStorageBasePath([post]);
     
     return CoreApiResponse.success(post);
@@ -170,14 +170,14 @@ export class PostController {
   @ApiBearerAuth()
   @ApiResponse({status: HttpStatus.OK, type: HttpRestApiResponsePostList})
   public async removePost(@HttpUser() user: HttpUserPayload, @Param('postId') postId: string): Promise<CoreApiResponse<void>> {
-    const adapter: RemovePostAdapter = await RemovePostAdapter.new({executorId: user.id, postId: postId});
-    await this.removePostUseCase.execute(adapter);
+    const adapter: RemovePostValidator = await RemovePostValidator.new({executorId: user.id, postId: postId});
+    await this.removePostInterface.execute(adapter);
     
     return CoreApiResponse.success();
   }
   
-  private setFileStorageBasePath(posts: PostUseCaseDto[]): void {
-    posts.forEach((post: PostUseCaseDto) => {
+  private setFileStorageBasePath(posts: PostInterfaceDto[]): void {
+    posts.forEach((post: PostInterfaceDto) => {
       if (post.image) {
         post.image.url = resolve(FileStorageConfig.BASE_PATH, post.image.url);
       }

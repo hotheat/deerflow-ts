@@ -3,18 +3,18 @@ import { MediaDITokens } from '@core/domain/media/di/MediaDITokens';
 import { Media } from '@core/domain/media/entity/Media';
 import { MediaFileStoragePort } from '@core/domain/media/port/persistence/MediaFileStoragePort';
 import { MediaRepositoryPort } from '@core/domain/media/port/persistence/MediaRepositoryPort';
-import { CreateMediaPort } from '@core/domain/media/port/usecase/CreateMediaPort';
-import { CreateMediaUseCase } from '@core/domain/media/usecase/CreateMediaUseCase';
-import { MediaUseCaseDto } from '@core/domain/media/usecase/dto/MediaUseCaseDto';
+import { CreateMediaDto } from '@core/domain/media/port/dto/CreateMediaDto';
+import { CreateMediaInterface } from '@core/domain/media/interface/CreateMediaInterface';
+import { MediaInterfaceDto } from '@core/domain/media/port/dto/MediaInterfaceDto';
 import { FileMetadata } from '@core/domain/media/value-object/FileMetadata';
 import { CreateFileMetadataValueObjectPayload } from '@core/domain/media/value-object/type/CreateFileMetadataValueObjectPayload';
-import { CreateMediaService } from '@core/service/media/usecase/CreateMediaService';
+import { CreateMediaService } from '@core/service/media/service/CreateMediaService';
 import { MinioMediaFileStorageAdapter } from '@infrastructure/adapter/persistence/media-file/MinioMediaFileStorageAdapter';
 import { Test, TestingModule } from '@nestjs/testing';
 import { v4 } from 'uuid';
 
 describe('CreateMediaService', () => {
-  let createMediaService: CreateMediaUseCase;
+  let createMediaService: CreateMediaInterface;
   let mediaRepository: MediaRepositoryPort;
   let mediaFileStorage: MediaFileStoragePort;
   
@@ -22,7 +22,7 @@ describe('CreateMediaService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         {
-          provide: MediaDITokens.CreateMediaUseCase,
+          provide: MediaDITokens.CreateMediaInterface,
           useFactory: (mediaRepository, mediaFileStorage) => new CreateMediaService(mediaRepository, mediaFileStorage),
           inject: [MediaDITokens.MediaRepository, MediaDITokens.MediaFileStorage]
         },
@@ -39,7 +39,7 @@ describe('CreateMediaService', () => {
       ]
     }).compile();
   
-    createMediaService = module.get<CreateMediaUseCase>(MediaDITokens.CreateMediaUseCase);
+    createMediaService = module.get<CreateMediaInterface>(MediaDITokens.CreateMediaInterface);
     mediaRepository    = module.get<MediaRepositoryPort>(MediaDITokens.MediaRepository);
     mediaFileStorage   = module.get<MediaFileStoragePort>(MediaDITokens.MediaFileStorage);
   });
@@ -57,7 +57,7 @@ describe('CreateMediaService', () => {
   
       jest.spyOn(mediaRepository, 'addMedia').mockClear();
   
-      const createMediaPort: CreateMediaPort = {
+      const createMediaPort: CreateMediaDto = {
         executorId: v4(),
         name      : v4(),
         type      : MediaType.IMAGE,
@@ -72,17 +72,17 @@ describe('CreateMediaService', () => {
         metadata: mockFileMetadata,
       });
   
-      const expectedMediaUseCaseDto: MediaUseCaseDto = await MediaUseCaseDto.newFromMedia(expectedMedia);
+      const expectedMediaInterfaceDto: MediaInterfaceDto = await MediaInterfaceDto.newFromMedia(expectedMedia);
       
-      const resultMediaUseCaseDto: MediaUseCaseDto = await createMediaService.execute(createMediaPort);
-      Reflect.set(resultMediaUseCaseDto, 'id', expectedMediaUseCaseDto.id);
-      Reflect.set(resultMediaUseCaseDto, 'createdAt', expectedMediaUseCaseDto.createdAt);
+      const resultMediaInterfaceDto: MediaInterfaceDto = await createMediaService.execute(createMediaPort);
+      Reflect.set(resultMediaInterfaceDto, 'id', expectedMediaInterfaceDto.id);
+      Reflect.set(resultMediaInterfaceDto, 'createdAt', expectedMediaInterfaceDto.createdAt);
       
       const resultAddedMedia: Media = jest.spyOn(mediaRepository, 'addMedia').mock.calls[0][0];
       Reflect.set(resultAddedMedia, 'id', expectedMedia.getId());
       Reflect.set(resultAddedMedia, 'createdAt', expectedMedia.getCreatedAt());
       
-      expect(resultMediaUseCaseDto).toEqual(expectedMediaUseCaseDto);
+      expect(resultMediaInterfaceDto).toEqual(expectedMediaInterfaceDto);
       expect(resultAddedMedia).toEqual(expectedMedia);
     });
     

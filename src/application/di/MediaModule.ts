@@ -2,14 +2,14 @@ import { MediaController } from '@application/api/http-rest/controller/MediaCont
 import { PersistenceModule } from '@application/di/PersistenceModule';
 import { MediaDITokens } from '@core/domain/media/di/MediaDITokens';
 import { PostDITokens } from '@core/domain/post/di/PostDITokens';
-import { CreateMediaUseCase } from '@core/domain/media/usecase/CreateMediaUseCase';
-import { EditMediaUseCase } from '@core/domain/media/usecase/EditMediaUseCase';
-import { RemoveMediaUseCase } from '@core/domain/media/usecase/RemoveMediaUseCase';
-import { CreateMediaService } from '@core/service/media/usecase/CreateMediaService';
-import { EditMediaService } from '@core/service/media/usecase/EditMediaService';
-import { GetMediaListService } from '@core/service/media/usecase/GetMediaListService';
-import { GetMediaService } from '@core/service/media/usecase/GetMediaService';
-import { RemoveMediaService } from '@core/service/media/usecase/RemoveMediaService';
+import { CreateMediaInterface } from '@core/domain/media/interface/CreateMediaInterface';
+import { EditMediaInterface } from '@core/domain/media/interface/EditMediaInterface';
+import { RemoveMediaInterface } from '@core/domain/media/interface/RemoveMediaInterface';
+import { CreateMediaService } from '@core/service/media/service/CreateMediaService';
+import { EditMediaService } from '@core/service/media/service/EditMediaService';
+import { GetMediaListService } from '@core/service/media/service/GetMediaListService';
+import { GetMediaService } from '@core/service/media/service/GetMediaService';
+import { RemoveMediaService } from '@core/service/media/service/RemoveMediaService';
 import { PrismaService } from '@infrastructure/adapter/persistence/PrismaService';
 import { TransactionalUseCaseWrapper } from '@infrastructure/transaction/TransactionalUseCaseWrapper';
 import { Module } from '@nestjs/common';
@@ -18,36 +18,36 @@ import { Provider } from '@nestjs/common/interfaces/modules/provider.interface';
 
 const useCaseProviders: Provider[] = [
   {
-    provide   : MediaDITokens.CreateMediaUseCase,
+    provide   : MediaDITokens.CreateMediaInterface,
     useFactory: (mediaRepository, mediaFileStorage, prismaService) => {
-      const service: CreateMediaUseCase = new CreateMediaService(mediaRepository, mediaFileStorage);
+      const service: CreateMediaInterface = new CreateMediaService(mediaRepository, mediaFileStorage);
       return new TransactionalUseCaseWrapper(service, prismaService);
     },
     inject    : [MediaDITokens.MediaRepository, MediaDITokens.MediaFileStorage, PrismaService]
   },
   {
-    provide   : MediaDITokens.EditMediaUseCase,
+    provide   : MediaDITokens.EditMediaInterface,
     useFactory: (mediaRepository, prismaService) => {
-      const service: EditMediaUseCase = new EditMediaService(mediaRepository);
+      const service: EditMediaInterface = new EditMediaService(mediaRepository);
       return new TransactionalUseCaseWrapper(service, prismaService);
       
     },
     inject    : [MediaDITokens.MediaRepository, PrismaService]
   },
   {
-    provide   : MediaDITokens.GetMediaListUseCase,
+    provide   : MediaDITokens.GetMediaListInterface,
     useFactory: (mediaRepository) => new GetMediaListService(mediaRepository),
     inject    : [MediaDITokens.MediaRepository]
   },
   {
-    provide   : MediaDITokens.GetMediaUseCase,
+    provide   : MediaDITokens.GetMediaInterface,
     useFactory: (mediaRepository) => new GetMediaService(mediaRepository),
     inject    : [MediaDITokens.MediaRepository]
   },
   {
-    provide   : MediaDITokens.RemoveMediaUseCase,
+    provide   : MediaDITokens.RemoveMediaInterface,
     useFactory: (mediaRepository, postRepository, prismaService) => {
-      const service: RemoveMediaUseCase = new RemoveMediaService(mediaRepository, postRepository);
+      const service: RemoveMediaInterface = new RemoveMediaService(mediaRepository, postRepository);
       return new TransactionalUseCaseWrapper(service, prismaService);
     },
     inject    : [MediaDITokens.MediaRepository, PostDITokens.PostRepository, PrismaService]

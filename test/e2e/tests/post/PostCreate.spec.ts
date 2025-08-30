@@ -7,7 +7,7 @@ import { Post } from '@core/domain/post/entity/Post';
 import { PostImage } from '@core/domain/post/entity/PostImage';
 import { PostRepositoryPort } from '@core/domain/post/port/persistence/PostRepositoryPort';
 import { User } from '@core/domain/user/entity/User';
-import { CreatePostAdapter } from '@infrastructure/adapter/usecase/post/CreatePostAdapter';
+import { CreatePostValidator } from '@infrastructure/adapter/validator/post/CreatePostValidator';
 import { FileStorageConfig } from '@infrastructure/config/FileStorageConfig';
 import { HttpStatus } from '@nestjs/common';
 import { TestServer } from '@test/.common/TestServer';
@@ -100,7 +100,7 @@ describe('Post.Create', () => {
         .set('x-api-token', accessToken)
         .expect(HttpStatus.OK);
 
-      expect(response.body.data.context).toBe(CreatePostAdapter.name);
+      expect(response.body.data.context).toBe(CreatePostValidator.name);
       expect(response.body.data.errors.map((error: Record<string, unknown>) => error.property)).toEqual(['title', 'imageId', 'content']);
 
       ResponseExpect.codeAndMessage(response.body, {code: Code.USE_CASE_PORT_VALIDATION_ERROR.code, message: Code.USE_CASE_PORT_VALIDATION_ERROR.message});

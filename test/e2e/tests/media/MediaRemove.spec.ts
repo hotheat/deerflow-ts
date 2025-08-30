@@ -8,7 +8,7 @@ import { PostDITokens } from '@core/domain/post/di/PostDITokens';
 import { Post } from '@core/domain/post/entity/Post';
 import { PostRepositoryPort } from '@core/domain/post/port/persistence/PostRepositoryPort';
 import { User } from '@core/domain/user/entity/User';
-import { RemoveMediaAdapter } from '@infrastructure/adapter/usecase/media/RemoveMediaAdapter';
+import { RemoveMediaValidator } from '@infrastructure/adapter/validator/media/RemoveMediaValidator';
 import { HttpStatus } from '@nestjs/common';
 import { TestServer } from '@test/.common/TestServer';
 import { AuthExpect } from '@test/e2e/expect/AuthExpect';
@@ -148,7 +148,7 @@ describe('Media.Remove', () => {
         .set('x-api-token', auth.accessToken)
         .expect(HttpStatus.OK);
       
-      expect(response.body.data.context).toBe(RemoveMediaAdapter.name);
+      expect(response.body.data.context).toBe(RemoveMediaValidator.name);
       expect(response.body.data.errors.map((error: Record<string, unknown>) => error.property)).toEqual(['mediaId']);
       
       ResponseExpect.codeAndMessage(response.body, {code: Code.USE_CASE_PORT_VALIDATION_ERROR.code, message: Code.USE_CASE_PORT_VALIDATION_ERROR.message});

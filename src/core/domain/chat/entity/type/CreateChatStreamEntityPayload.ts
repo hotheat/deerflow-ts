@@ -1,6 +1,6 @@
 export interface CreateChatStreamEntityPayload {
   id?: string;
   threadId: string;
-  messages: any[];
+  messages: Array<{ role: string; content: string; timestamp: string }>;
   ts?: Date;
 }

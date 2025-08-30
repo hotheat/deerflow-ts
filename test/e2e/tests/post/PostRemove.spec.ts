@@ -4,9 +4,9 @@ import { UserRole } from '@core/common/enums/UserEnums';
 import { PostDITokens } from '@core/domain/post/di/PostDITokens';
 import { Post } from '@core/domain/post/entity/Post';
 import { PostRepositoryPort } from '@core/domain/post/port/persistence/PostRepositoryPort';
-import { PostUseCaseDto } from '@core/domain/post/usecase/dto/PostUseCaseDto';
+import { PostInterfaceDto } from '@core/domain/post/port/dto/PostInterfaceDto';
 import { User } from '@core/domain/user/entity/User';
-import { RemovePostAdapter } from '@infrastructure/adapter/usecase/post/RemovePostAdapter';
+import { RemovePostValidator } from '@infrastructure/adapter/validator/post/RemovePostValidator';
 import { HttpStatus } from '@nestjs/common';
 import { TestServer } from '@test/.common/TestServer';
 import { AuthExpect } from '@test/e2e/expect/AuthExpect';
@@ -131,7 +131,7 @@ describe('Post.Remove', () => {
         .set('x-api-token', auth.accessToken)
         .expect(HttpStatus.OK);
       
-      expect(response.body.data.context).toBe(RemovePostAdapter.name);
+      expect(response.body.data.context).toBe(RemovePostValidator.name);
       expect(response.body.data.errors.map((error: Record<string, unknown>) => error.property)).toEqual(['postId']);
       
       ResponseExpect.codeAndMessage(response.body, {code: Code.USE_CASE_PORT_VALIDATION_ERROR.code, message: Code.USE_CASE_PORT_VALIDATION_ERROR.message});
@@ -177,5 +177,5 @@ async function expectItRemovesPost(
   ResponseExpect.data({response: getResponse.body}, null);
   
   ResponseExpect.codeAndMessage(getListResponse.body, {code: Code.SUCCESS.code, message: Code.SUCCESS.message});
-  expect(getListResponse.body.data.filter((item: PostUseCaseDto) => item.id === post.getId())).toEqual([]);
+  expect(getListResponse.body.data.filter((item: PostInterfaceDto) => item.id === post.getId())).toEqual([]);
 }

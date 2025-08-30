@@ -1,10 +1,10 @@
-import { UseCaseValidatableAdapter } from '@core/common/adapter/usecase/UseCaseValidatableAdapter';
+import { ValidatorAdapter } from '@core/common/adapter/validator/ValidatorAdapter';
 import { Code } from '@core/common/code/Code';
 import { Exception } from '@core/common/exception/Exception';
 import { ClassValidationDetails } from '@core/common/util/class-validator/ClassValidator';
 import { IsString } from 'class-validator';
 
-class MockAdapter extends UseCaseValidatableAdapter {
+class MockAdapter extends ValidatorAdapter {
   @IsString()
   public stringProperty: string;
   
@@ -14,7 +14,7 @@ class MockAdapter extends UseCaseValidatableAdapter {
   }
 }
 
-describe('UseCaseValidatableAdapter', () => {
+describe('ValidatorAdapter', () => {
   
   describe('validate', () => {
   

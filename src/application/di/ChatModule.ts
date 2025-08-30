@@ -1,6 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ChatController } from '@application/api/http-rest/controller/ChatController';
 import { ChatStreamRepositoryAdapter } from '@infrastructure/adapter/persistence/repository/chat/ChatStreamRepositoryAdapter';
+import { ChatWorkflow } from '@infrastructure/adapter/workflow/langgraph/ChatWorkflow';
+import { LangGraphChatAdapter } from '@infrastructure/adapter/workflow/langgraph/LangGraphChatAdapter';
+import { StreamChatService } from '@core/service/chat/service/StreamChatService';
 import { ChatDITokens } from '@core/domain/chat/di/ChatDITokens';
 import { PersistenceModule } from '@application/di/PersistenceModule';
 
@@ -12,6 +15,26 @@ import { PersistenceModule } from '@application/di/PersistenceModule';
       provide: ChatDITokens.ChatStreamRepository,
       useClass: ChatStreamRepositoryAdapter,
     },
+    {
+      provide: ChatDITokens.ChatWorkflowAdapterPort,
+      useClass: LangGraphChatAdapter,
+    },
+    {
+      provide: ChatDITokens.StreamChatInterface,
+      useClass: StreamChatService,
+    },
+    // Legacy provider for backward compatibility
+    {
+      provide: ChatDITokens.ChatWorkflow,
+      useClass: ChatWorkflow,
+    },
+    StreamChatService,
+  ],
+  exports: [
+    ChatDITokens.ChatWorkflowAdapterPort, 
+    ChatDITokens.StreamChatInterface, 
+    ChatDITokens.ChatWorkflow, 
+    StreamChatService
   ],
 })
 export class ChatModule {}

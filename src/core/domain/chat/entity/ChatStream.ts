@@ -10,7 +10,7 @@ export class ChatStream extends Entity<string> {
   private readonly _threadId: string;
 
   @IsArray()
-  private _messages: any[];
+  private _messages: Array<{ role: string; content: string; timestamp: string }>;
 
   private _ts: Date;
 
@@ -24,12 +24,12 @@ export class ChatStream extends Entity<string> {
   }
 
   public static async new(payload: CreateChatStreamEntityPayload): Promise<ChatStream> {
-    const stream = new ChatStream(payload);
+    const stream: ChatStream = new ChatStream(payload);
     await stream.validate();
     return stream;
   }
 
-  public updateMessages(messages: any[]): void {
+  public updateMessages(messages: Array<{ role: string; content: string; timestamp: string }>): void {
     this._messages = messages;
     this._ts = new Date();
   }
@@ -38,7 +38,7 @@ export class ChatStream extends Entity<string> {
     return this._threadId; 
   }
   
-  get messages(): any[] { 
+  get messages(): Array<{ role: string; content: string; timestamp: string }> { 
     return [...this._messages]; 
   }
   

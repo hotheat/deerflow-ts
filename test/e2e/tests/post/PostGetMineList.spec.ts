@@ -2,7 +2,7 @@ import { Code } from '@core/common/code/Code';
 import { PostStatus } from '@core/common/enums/PostEnums';
 import { UserRole } from '@core/common/enums/UserEnums';
 import { Post } from '@core/domain/post/entity/Post';
-import { PostUseCaseDto } from '@core/domain/post/usecase/dto/PostUseCaseDto';
+import { PostInterfaceDto } from '@core/domain/post/port/dto/PostInterfaceDto';
 import { User } from '@core/domain/user/entity/User';
 import { HttpStatus } from '@nestjs/common';
 import { TestServer } from '@test/.common/TestServer';
@@ -114,7 +114,7 @@ async function expectItReturnsListWithMinePosts(
   ];
   
   const authorIds: string[] = [executor.getId(), otherUser.getId()];
-  const receivedPostList: PostUseCaseDto[] = response.body.data.filter((item: PostUseCaseDto) => authorIds.includes(item.owner.id));
+  const receivedPostList: PostInterfaceDto[] = response.body.data.filter((item: PostInterfaceDto) => authorIds.includes(item.owner.id));
   
   ResponseExpect.codeAndMessage(response.body, {code: Code.SUCCESS.code, message: Code.SUCCESS.message});
   

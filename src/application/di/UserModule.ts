@@ -1,19 +1,19 @@
 import { UserController } from '@application/api/http-rest/controller/UserController';
 import { PersistenceModule } from '@application/di/PersistenceModule';
 import { UserDITokens } from '@core/domain/user/di/UserDITokens';
-import { CreateUserService } from '@core/service/user/usecase/CreateUserService';
-import { GetUserService } from '@core/service/user/usecase/GetUserService';
+import { CreateUserService } from '@core/service/user/service/CreateUserService';
+import { GetUserService } from '@core/service/user/service/GetUserService';
 import { Module, Provider } from '@nestjs/common';
 
 
 const useCaseProviders: Provider[] = [
   {
-    provide   : UserDITokens.CreateUserUseCase,
+    provide   : UserDITokens.CreateUserInterface,
     useFactory: (userRepository) => new CreateUserService(userRepository),
     inject    : [UserDITokens.UserRepository]
   },
   {
-    provide   : UserDITokens.GetUserUseCase,
+    provide   : UserDITokens.GetUserInterface,
     useFactory: (userRepository) => new GetUserService(userRepository),
     inject    : [UserDITokens.UserRepository]
   },

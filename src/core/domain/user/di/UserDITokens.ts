@@ -2,8 +2,8 @@ export class UserDITokens {
   
   // Use-cases
   
-  public static readonly CreateUserUseCase: unique symbol  = Symbol('CreateUserUseCase');
-  public static readonly GetUserUseCase: unique symbol     = Symbol('GetUserUseCase');
+  public static readonly CreateUserInterface: unique symbol  = Symbol('CreateUserInterface');
+  public static readonly GetUserInterface: unique symbol     = Symbol('GetUserInterface');
   
   
   // Repositories

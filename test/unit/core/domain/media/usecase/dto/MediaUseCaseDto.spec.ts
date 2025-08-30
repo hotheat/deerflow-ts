@@ -1,17 +1,17 @@
 import { MediaType } from '@core/common/enums/MediaEnums';
 import { Media } from '@core/domain/media/entity/Media';
 import { CreateMediaEntityPayload } from '@core/domain/media/entity/type/CreateMediaEntityPayload';
-import { MediaUseCaseDto } from '@core/domain/media/usecase/dto/MediaUseCaseDto';
+import { MediaInterfaceDto } from '@core/domain/media/port/dto/MediaInterfaceDto';
 import { FileMetadata } from '@core/domain/media/value-object/FileMetadata';
 import { v4 } from 'uuid';
 
-describe('MediaUseCaseDto', () => {
+describe('MediaInterfaceDto', () => {
 
   describe('newFromMedia', () => {
   
-    test('Expect it creates MediaUseCaseDto instance with required parameters', async () => {
+    test('Expect it creates MediaInterfaceDto instance with required parameters', async () => {
       const media: Media = await createMedia();
-      const mediaUseCaseDto: MediaUseCaseDto = MediaUseCaseDto.newFromMedia(media);
+      const mediaUseCaseDto: MediaInterfaceDto = MediaInterfaceDto.newFromMedia(media);
   
       expect(mediaUseCaseDto.id).toBe(media.getId());
       expect(mediaUseCaseDto.ownerId).toBe(media.getOwnerId());
@@ -26,9 +26,9 @@ describe('MediaUseCaseDto', () => {
   
   describe('newListFromMedias', () => {
     
-    test('Expect it creates MediaUseCaseDto instances with required parameters', async () => {
+    test('Expect it creates MediaInterfaceDto instances with required parameters', async () => {
       const media: Media = await createMedia();
-      const mediaUseCaseDtos: MediaUseCaseDto[] = MediaUseCaseDto.newListFromMedias([media]);
+      const mediaUseCaseDtos: MediaInterfaceDto[] = MediaInterfaceDto.newListFromMedias([media]);
   
       expect(mediaUseCaseDtos.length).toBe(1);
       expect(mediaUseCaseDtos[0].id).toBe(media.getId());
